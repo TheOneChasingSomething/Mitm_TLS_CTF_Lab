@@ -1,0 +1,40 @@
+# Override « mode DEBUG » — insère un proxy d'OBSERVATION (mitmproxy/mitmweb)
+# par lequel transite TOUT le trafic du client-victime vers les cibles.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d --build
+#   → interface d'inspection : http://localhost:8081
+#
+# La victime accepte déjà n'importe quel certificat (CERT_NONE) : mitmproxy peut
+# donc DÉCHIFFRER intégralement les sessions TLS victime↔cible et afficher, en
+# clair, chaque requête/réponse (flux du flag, blob RSA-OAEP, clé fuitée, cookies
+# de session POODLE/BEAST/Logjam, page Heartbleed…). Idéal pour vérifier qu'un
+# challenge délivre bien son flag et pour montrer le contenu des échanges.
+#
+# ⚠️ Ce mode ROUTE la victime À TRAVERS le proxy (victime → proxy → cible) : il
+#    sert au DÉBOGAGE et à la DÉMONSTRATION par l'enseignant, PAS aux sessions
+#    d'attaque des étudiants (il modifie le chemin que l'ARP spoofing viserait).
+#    Pour une capture sans interface (fichier rejouable), remplacer 'mitmweb' par
+#    'mitmdump -w /flows/lab.flows' et monter un volume /flows.
+
+services:
+  debug-proxy:
+    image: mitmproxy/mitmproxy:latest
+    # mitmweb : proxy HTTP(S) sur 8080, interface web sur 8081.
+    command: >
+      mitmweb --web-host 0.0.0.0 --web-port 8081 --listen-port 8080
+              --ssl-insecure --set web_open_browser=false
+    ports:
+      - "8081:8081"            # interface d'inspection (enseignant)
+    networks:
+      lab:
+        ipv4_address: 172.28.0.12
+    restart: unless-stopped
+
+  # La victime envoie désormais tout son trafic via le proxy d'observation.
+  victim-client:
+    environment:
+      HTTP_PROXY: "http://debug-proxy:8080"
+      HTTPS_PROXY: "http://debug-proxy:8080"
+      NO_PROXY: "localhost,127.0.0.1"
+    depends_on:
+      - debug-proxy

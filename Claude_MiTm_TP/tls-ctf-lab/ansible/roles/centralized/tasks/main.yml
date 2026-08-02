@@ -1,0 +1,93 @@
+---
+# Mode 3 — instances centralisées anti-triche. Exécuté sur le serveur prof.
+# 1) construit UNE fois les images partagées ; 2) crée une instance isolée par
+# étudiant (réseau /24 dédié, aucun port publié, flags uniques) ; 3) provisionne
+# un accès SSH confiné (ForceCommand → conteneur attaquant, sans accès hôte).
+
+- name: Synchroniser les contextes de build
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../{{ item }}"
+    dest: "{{ lab_project_dir }}/"
+    delete: true
+    rsync_opts: ["--exclude=__pycache__"]
+  loop: [app, victim-client, targets, attacker, solutions]
+
+- name: Construire les images partagées (une seule fois)
+  ansible.builtin.command:
+    cmd: "docker build -t tls-lab-{{ item.tag }} {{ item.args | default('') }} {{ lab_project_dir }}/{{ item.ctx }}"
+    chdir: "{{ lab_project_dir }}"
+  loop:
+    - { tag: "portal",         ctx: "app" }
+    - { tag: "victim",         ctx: "victim-client" }
+    - { tag: "attacker",       ctx: "attacker" }
+    - { tag: "openssl-warmup", ctx: "targets/openssl-warmup", args: "--build-arg FLAG_C1={{ common_c1_flag }}" }
+    - { tag: "scapy-warmup",   ctx: "targets/scapy-warmup" }
+    - { tag: "mitm-http",      ctx: "targets/mitm-http" }
+    - { tag: "self-signed",    ctx: "targets/self-signed" }
+    - { tag: "key-leak",       ctx: "targets/key-leak" }
+    - { tag: "pfs-rsa",        ctx: "targets/pfs-rsa" }
+    - { tag: "logjam",         ctx: "targets/logjam" }
+    - { tag: "ssl-strip",      ctx: "targets/ssl-strip" }
+    - { tag: "poodle",         ctx: "targets/poodle" }
+    - { tag: "beast",          ctx: "targets/beast" }
+    - { tag: "heartbleed",     ctx: "targets/heartbleed" }
+
+- name: Créer le répertoire d'instance
+  ansible.builtin.file:
+    path: "{{ lab_project_dir }}/instances/{{ item.login }}"
+    state: directory
+    mode: "0750"
+  loop: "{{ student_instances }}"
+  loop_control: { label: "{{ item.login }}" }
+
+- name: Générer le compose d'instance (isolé, flags uniques)
+  ansible.builtin.template:
+    src: docker-compose.instance.yml.j2
+    dest: "{{ lab_project_dir }}/instances/{{ item.0.login }}/docker-compose.yml"
+    mode: "0640"
+  loop: "{{ student_instances | zip(range(1, student_instances|length + 1)) | list }}"
+  loop_control: { label: "{{ item.0.login }}" }
+  vars:
+    login: "{{ item.0.login }}"
+    idx: "{{ item.1 }}"
+
+- name: Démarrer chaque instance
+  ansible.builtin.command:
+    cmd: "docker compose -p tp-{{ item.login }} up -d"
+    chdir: "{{ lab_project_dir }}/instances/{{ item.login }}"
+  loop: "{{ student_instances }}"
+  loop_control: { label: "{{ item.login }}" }
+
+# ---- Accès SSH confiné (anti-triche : ni hôte, ni Docker, ni autres instances) ----
+- name: Compte système par étudiant (sans privilèges)
+  ansible.builtin.user:
+    name: "tp-{{ item.login }}"
+    shell: /usr/sbin/nologin
+    create_home: true
+  loop: "{{ student_instances }}"
+  loop_control: { label: "{{ item.login }}" }
+
+- name: Règle sudo LIMITÉE à l'entrée dans le seul conteneur attaquant de l'étudiant
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/tp-{{ item.login }}"
+    mode: "0440"
+    content: "tp-{{ item.login }} ALL=(root) NOPASSWD: /usr/bin/docker exec -it tp-{{ item.login }}-attacker /bin/bash\n"
+    validate: "visudo -cf %s"
+  loop: "{{ student_instances }}"
+  loop_control: { label: "{{ item.login }}" }
+
+- name: Clé SSH avec ForceCommand → conteneur attaquant (aucun shell hôte, aucun forward)
+  ansible.posix.authorized_key:
+    user: "tp-{{ item.login }}"
+    key: "{{ item.ssh_pubkey }}"
+    key_options: 'command="sudo docker exec -it tp-{{ item.login }}-attacker /bin/bash",no-port-forwarding,no-X11-forwarding,no-agent-forwarding'
+    exclusive: true
+  loop: "{{ student_instances }}"
+  loop_control: { label: "{{ item.login }}" }
+
+- name: Rappel d'accès étudiant
+  ansible.builtin.debug:
+    msg: >-
+      Instances prêtes. Chaque étudiant se connecte par :
+      ssh -t tp-<login>@{{ teacher_ip }}  → il atterrit dans SON conteneur attaquant,
+      sur SON réseau isolé, sans accès à l'hôte ni aux autres instances.

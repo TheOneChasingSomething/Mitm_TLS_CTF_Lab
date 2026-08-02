@@ -1,0 +1,16 @@
+---
+# Mode 3 — instances centralisées anti-triche.
+# Tout tourne sur le serveur prof ; chaque étudiant reçoit une instance isolée
+# (portail + cibles + victime + attaquant) accessible UNIQUEMENT par SSH confiné.
+#
+#   ansible-playbook centralized.yml
+#
+# Prérequis : renseigner student_instances (login + clé publique SSH) et
+# teacher_ip dans group_vars/all.yml (ou l'inventaire).
+
+- name: Instances TLS isolées par étudiant (serveur prof)
+  hosts: teacher
+  become: true
+  roles:
+    - common
+    - centralized

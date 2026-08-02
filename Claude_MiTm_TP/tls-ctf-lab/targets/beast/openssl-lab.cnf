@@ -1,0 +1,15 @@
+# Configuration OpenSSL VOLONTAIREMENT permissive : réautorise TLS 1.0 et abaisse
+# le niveau de sécurité pour permettre les suites CBC anciennes exploitées par
+# BEAST. À n'utiliser QUE dans le laboratoire isolé.
+openssl_conf = default_conf
+
+[default_conf]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+MinProtocol = TLSv1
+MaxProtocol = TLSv1
+CipherString = DEFAULT:@SECLEVEL=0

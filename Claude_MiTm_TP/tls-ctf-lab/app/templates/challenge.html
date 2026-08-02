@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Challenge {{ cid }} — {{ c.title }}{% endblock %}
+{% block body %}
+<a class="back" href="{{ url_for('index') }}">← tableau de bord</a>
+<h1><span class="num-inline">{{ '%02d'|format(cid|int) }}</span> {{ c.title }}</h1>
+
+<div class="handshake {{ 'leak' if c.encrypted_by=='rsa-oaep' else 'weak' }}">
+  <code>{{ c.transport }}</code>
+</div>
+
+<section class="brief">
+  <h3>Objectif</h3>
+  <p>{{ c.objective }}</p>
+  <dl class="meta">
+    <dt>Compétence</dt><dd>{{ c.skill }}</dd>
+    <dt>Port de la cible</dt><dd>{{ c.target_port }}</dd>
+    <dt>Barème</dt><dd>{{ c.points }} points</dd>
+    <dt>Indice</dt><dd class="hint">{{ c.hint }}</dd>
+  </dl>
+</section>
+
+<div class="actions">
+  <a class="action feed" href="{{ url_for('flag_feed', cid=cid) }}">① Flux du flag (chiffré)</a>
+  <a class="action start" href="{{ url_for('start', cid=cid) }}">② Démarrer (IP destination)</a>
+  <a class="action verify" href="{{ url_for('verify', cid=cid) }}">③ Vérifier le flag</a>
+</div>
+{% endblock %}

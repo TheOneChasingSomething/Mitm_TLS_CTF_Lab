@@ -1,0 +1,12 @@
+#cloud-config
+# cloud-init d'amorçage pour le build Packer→QEMU (identifiants éphémères).
+users:
+  - name: lab
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    # mot de passe : labtp (à ne pas conserver hors build)
+    passwd: "$6$rounds=4096$labsalt$Jt5g0Xq3 ... (générer via mkpasswd)"
+    shell: /bin/bash
+ssh_pwauth: true
+chpasswd:
+  expire: false

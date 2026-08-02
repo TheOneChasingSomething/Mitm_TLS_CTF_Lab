@@ -1,0 +1,36 @@
+---
+# Déploie le PORTAIL (site qui reçoit et vérifie les flags) sur la machine prof.
+
+- name: Synchroniser le contexte de build du portail
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../app/"
+    dest: "{{ lab_project_dir }}/app/"
+    delete: true
+    rsync_opts: ["--exclude=__pycache__"]
+  when: image_source == "build"
+
+- name: Charger l'image portail pré-cuite (mode load)
+  ansible.builtin.command:
+    cmd: "docker load -i {{ image_tarball_dir }}/tls-lab-portal.tar"
+  when: image_source == "load"
+
+- name: Déposer le compose du portail
+  ansible.builtin.template:
+    src: docker-compose.teacher.yml.j2
+    dest: "{{ lab_project_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Construire l'image portail (mode build)
+  ansible.builtin.command:
+    cmd: docker compose build
+    chdir: "{{ lab_project_dir }}"
+  when: image_source == "build"
+
+- name: Démarrer le portail
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ lab_project_dir }}"
+
+- name: Rappel d'accès
+  ansible.builtin.debug:
+    msg: "Portail accessible sur http://{{ teacher_ip }}:{{ portal_port }}/ (dashboard + vérification des flags)."

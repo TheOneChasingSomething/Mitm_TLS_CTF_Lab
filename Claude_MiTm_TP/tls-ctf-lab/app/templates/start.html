@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Démarrer — {{ c.title }}{% endblock %}
+{% block body %}
+<a class="back" href="{{ url_for('challenge', cid=cid) }}">← challenge {{ cid }}</a>
+<h1>② Démarrer le challenge</h1>
+<p class="lede">
+  Indiquez l'IP de <strong>destination</strong> vers laquelle armer le
+  client-victime. Il émettra alors le trafic à intercepter. Seules les adresses
+  privées du réseau de laboratoire (<code>{{ lab_cidr }}</code>) sont acceptées.
+</p>
+
+{% if error %}<div class="banner err">{{ error }}</div>{% endif %}
+{% if token %}
+<div class="banner ok">
+  Client-victime armé. Jeton <code>{{ token }}</code> — trafic généré vers
+  <code>{{ dest_ip }}</code> sur le port {{ c.target_port }}. Lancez votre
+  capture / MITM maintenant.
+</div>
+{% endif %}
+
+<form method="post" class="panel">
+  <label for="dest_ip">IP de destination (réseau lab)</label>
+  <input id="dest_ip" name="dest_ip" placeholder="172.28.0.42"
+         pattern="[0-9.]+" autocomplete="off" required>
+  <button type="submit">Armer le client-victime</button>
+</form>
+{% endblock %}

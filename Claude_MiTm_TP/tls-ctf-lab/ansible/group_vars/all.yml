@@ -1,0 +1,54 @@
+---
+# Variables partagées du déploiement « salle de TP ».
+
+lab_domain: "bank.tp.lan"
+lab_subnet: "172.28.0.0/16"
+portal_port: 5000
+
+# Répertoire où les contextes de build sont synchronisés sur chaque hôte.
+lab_project_dir: "/opt/tls-lab"
+
+# IP de la machine prof (portail central), déduite de l'inventaire.
+teacher_ip: "{{ hostvars[groups['teacher'][0]]['ansible_host'] | default(groups['teacher'][0]) }}"
+
+# Provenance des images :
+#   build → chaque hôte construit les images via `docker compose build`
+#           (simple, mais recompile les cibles héritées : Heartbleed compile
+#            OpenSSL 1.0.1f, Logjam tire ubuntu:14.04 → lent sur N postes).
+#   load  → les images sont pré-cuites UNE fois avec Packer (`docker save`),
+#           puis distribuées et chargées (`docker load`) — recommandé en salle.
+image_source: "build"
+image_tarball_dir: "/opt/tls-lab/images"
+
+# Flags (surchargez pour une promotion ; idéalement via ansible-vault).
+# Le MÊME jeu est déployé au portail (prof) et aux cibles (étudiants) afin que
+# les empreintes de vérification concordent.
+flags:
+  FLAG_C1:  "FLAG{asn1_walk_then_verify_the_signature}"
+  FLAG_C2:  "FLAG{sniff_dissect_craft_send}"
+  FLAG_C3:  "FLAG{cleartext_http_has_no_secrets}"
+  FLAG_C4:  "FLAG{identity_without_pki_is_no_identity}"
+  FLAG_C5:  "FLAG{a_leaked_key_breaks_forward_secrecy}"
+  FLAG_C6:  "FLAG{no_ephemeral_means_retroactive_decryption}"
+  FLAG_C7:  "FLAG{export_dh_512_is_precomputable}"
+  FLAG_C8:  "FLAG{downgrade_then_read_in_cleartext}"
+  FLAG_C9:  "FLAG{sslv3_cbc_padding_is_an_oracle}"
+  FLAG_C10: "FLAG{predictable_iv_enables_chosen_plaintext}"
+  FLAG_C11: "FLAG{heartbeat_payload_length_unchecked}"
+
+# ─────────────────── Mode 3 : instances centralisées (anti-triche) ─────────
+# Tout tourne sur le serveur prof, en une instance ISOLÉE par étudiant, joignable
+# uniquement par SSH (aucun port cible publié). Renseignez un login + une clé
+# publique SSH par étudiant. L'index sert à allouer un sous-réseau /24 distinct.
+instance_subnet_base: "172.29"          # instance i → 172.29.<i>.0/24
+attacker_image: "tls-lab-attacker"
+
+# Flag du warm-up C1 : embarqué dans le certificat (image partagée) → commun à
+# toutes les instances. Les flags C2..C11 sont, eux, UNIQUES par étudiant
+# (dérivés du login) pour empêcher tout partage de flag.
+common_c1_flag: "{{ flags.FLAG_C1 }}"
+
+student_instances:
+  - { login: "etu01", ssh_pubkey: "ssh-ed25519 AAAA...remplacer... etu01" }
+  - { login: "etu02", ssh_pubkey: "ssh-ed25519 AAAA...remplacer... etu02" }
+  - { login: "etu03", ssh_pubkey: "ssh-ed25519 AAAA...remplacer... etu03" }

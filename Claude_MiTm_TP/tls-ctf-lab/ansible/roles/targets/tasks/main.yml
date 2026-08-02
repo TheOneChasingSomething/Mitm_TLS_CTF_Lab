@@ -1,0 +1,38 @@
+---
+# Déploie les CIBLES vulnérables + le client-victime (mode standalone) sur chaque
+# poste étudiant. Les cibles proxifient vers le portail central via extra_hosts.
+
+- name: Synchroniser les contextes de build (cibles + victime)
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../{{ item }}"
+    dest: "{{ lab_project_dir }}/"
+    delete: true
+    rsync_opts: ["--exclude=__pycache__"]
+  loop: [targets, victim-client, scripts]
+  when: image_source == "build"
+
+- name: Charger les images pré-cuites (mode load)
+  ansible.builtin.shell:
+    cmd: "for f in {{ image_tarball_dir }}/tls-lab-c*.tar; do docker load -i \"$f\"; done"
+  when: image_source == "load"
+
+- name: Déposer le compose des postes
+  ansible.builtin.template:
+    src: docker-compose.student.yml.j2
+    dest: "{{ lab_project_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Construire les images des cibles (mode build)
+  ansible.builtin.command:
+    cmd: docker compose build
+    chdir: "{{ lab_project_dir }}"
+  when: image_source == "build"
+
+- name: Démarrer les cibles + la victime
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ lab_project_dir }}"
+
+- name: Rappel
+  ansible.builtin.debug:
+    msg: "Poste prêt. Cibles locales 8441-8453 ; victime en mode standalone ; flags vérifiés sur http://{{ teacher_ip }}:{{ portal_port }}/."

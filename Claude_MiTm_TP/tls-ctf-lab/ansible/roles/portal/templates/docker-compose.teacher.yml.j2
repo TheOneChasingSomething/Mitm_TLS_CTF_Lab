@@ -1,0 +1,31 @@
+# GÉNÉRÉ PAR ANSIBLE — machine prof (portail central).
+# Le portail reçoit les flux de flags (proxifiés par les cibles des postes) et
+# vérifie les soumissions. C'est le SEUL service hébergé ici.
+services:
+  portal:
+{% if image_source == 'build' %}
+    build: ./app
+{% else %}
+    image: tls-lab-portal
+{% endif %}
+    environment:
+      LAB_CIDR: "{{ lab_subnet }}"
+      LAB_DOMAIN: "{{ lab_domain }}"
+{% for k, v in flags.items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+    ports: ["{{ portal_port }}:5000"]
+    volumes:
+      - labdata:/data            # paire RSA (fuite C5 servie via /.well-known/backup/)
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: 172.28.0.10 } }
+
+volumes:
+  labdata:
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "{{ lab_subnet }}"

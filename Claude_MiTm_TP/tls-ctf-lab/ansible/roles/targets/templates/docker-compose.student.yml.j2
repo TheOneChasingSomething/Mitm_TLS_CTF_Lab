@@ -1,0 +1,84 @@
+# GÉNÉRÉ PAR ANSIBLE — poste étudiant.
+# Héberge les CIBLES vulnérables + le client-victime (mode standalone). Les
+# cibles proxifient vers le PORTAIL CENTRAL de la prof : le nom d'hôte 'portal'
+# est résolu vers {{ teacher_ip }} par extra_hosts. Aucun portail local ici.
+{% set svc = [
+  {'name':'c1-openssl-warmup','ctx':'openssl-warmup','ip':21,'ports':['8451:8451'],'args':{'FLAG_C1':flags.FLAG_C1},'host':true},
+  {'name':'c2-scapy-warmup','ctx':'scapy-warmup','ip':22,'ports':[],'env':{'FLAG_C2':flags.FLAG_C2},'cap':true,'host':false},
+  {'name':'c3-mitm-http','ctx':'mitm-http','ip':23,'ports':['8453:8453'],'host':true},
+  {'name':'c4-self-signed','ctx':'self-signed','ip':24,'ports':['8441:8441'],'host':true},
+  {'name':'c5-key-leak','ctx':'key-leak','ip':25,'ports':['8442:8442'],'host':true,'conf':'targets/key-leak/nginx.classroom.conf'},
+  {'name':'c6-pfs-rsa','ctx':'pfs-rsa','ip':26,'ports':['8447:8447'],'host':true},
+  {'name':'c7-logjam','ctx':'logjam','ip':27,'ports':['8448:8448'],'env':{'FLAG_C7':flags.FLAG_C7},'host':true},
+  {'name':'c8-ssl-strip','ctx':'ssl-strip','ip':28,'ports':['8006:80','8443:8443'],'host':true},
+  {'name':'c9-poodle','ctx':'poodle','ip':29,'ports':['8444:8444'],'env':{'FLAG_C9':flags.FLAG_C9},'host':true},
+  {'name':'c10-beast','ctx':'beast','ip':30,'ports':['8446:8446'],'env':{'FLAG_C10':flags.FLAG_C10},'host':true},
+  {'name':'c11-heartbleed','ctx':'heartbleed','ip':31,'ports':['8445:8445'],'env':{'FLAG_C11':flags.FLAG_C11},'host':false},
+] %}
+services:
+  victim-client:
+{% if image_source == 'build' %}
+    build: ./victim-client
+{% else %}
+    image: tls-lab-victim
+{% endif %}
+    environment:
+      VICTIM_MODE: "standalone"
+      # Cibles LOCALES rejouées en boucle (dest_ip = nom de service docker).
+      VICTIM_STANDALONE_TARGETS: >-
+        [{"challenge":"3","slug":"mitm-http","dest_ip":"c3-mitm-http","port":8453,"mode":"cleartext"},
+         {"challenge":"4","slug":"self-signed-mitm","dest_ip":"c4-self-signed","port":8441,"mode":"tls"},
+         {"challenge":"6","slug":"pfs-rsa-kx","dest_ip":"c6-pfs-rsa","port":8447,"mode":"tls"},
+         {"challenge":"7","slug":"logjam","dest_ip":"c7-logjam","port":8448,"mode":"tls"},
+         {"challenge":"8","slug":"ssl-strip","dest_ip":"c8-ssl-strip","port":8443,"mode":"tls"},
+         {"challenge":"9","slug":"poodle-sslv3","dest_ip":"c9-poodle","port":8444,"mode":"tls"},
+         {"challenge":"10","slug":"beast-tls10","dest_ip":"c10-beast","port":8446,"mode":"tls"},
+         {"challenge":"11","slug":"heartbleed","dest_ip":"c11-heartbleed","port":8445,"mode":"memory"}]
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: 172.28.0.11 } }
+
+{% for s in svc %}
+  {{ s.name }}:
+{% if image_source == 'build' %}
+{% if s.args is defined %}
+    build:
+      context: ./targets/{{ s.ctx }}
+      args:
+{% for ak, av in s.args.items() %}
+        {{ ak }}: "{{ av }}"
+{% endfor %}
+{% else %}
+    build: ./targets/{{ s.ctx }}
+{% endif %}
+{% else %}
+    image: tls-lab-{{ s.name }}
+{% endif %}
+{% if s.env is defined %}
+    environment:
+{% for ek, ev in s.env.items() %}
+      {{ ek }}: "{{ ev }}"
+{% endfor %}
+{% endif %}
+{% if s.ports %}
+    ports: [{% for p in s.ports %}"{{ p }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endif %}
+{% if s.cap is defined and s.cap %}
+    cap_add: [NET_RAW, NET_ADMIN]
+{% endif %}
+{% if s.host %}
+    extra_hosts: ["portal:{{ teacher_ip }}"]   # 'portal' → machine prof
+{% endif %}
+{% if s.conf is defined %}
+    volumes:
+      - ./{{ s.conf }}:/etc/nginx/nginx.conf:ro   # variante salle de TP (proxy vers portail)
+{% endif %}
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: 172.28.0.{{ s.ip }} } }
+
+{% endfor %}
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "{{ lab_subnet }}"
