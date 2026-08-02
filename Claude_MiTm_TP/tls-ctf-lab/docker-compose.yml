@@ -1,0 +1,139 @@
+# Orchestration du laboratoire « Sécurité HTTPS » (11 challenges).
+# Réseau interne isolé (172.28.0.0/16 = LAB_CIDR) : aucune cible n'est publiée
+# au-delà des ports de TP, et le portail refuse toute IP de destination hors de
+# cette plage (cf. app/app.py).
+#
+#   docker compose build && docker compose up -d
+#
+# Rotation des flags : définir FLAG_C1..FLAG_C11 dans un fichier .env, puis
+#   docker compose up -d --build --force-recreate
+# (le même flag est propagé au portail ET à la cible correspondante).
+#
+# ⚠️ Les cibles C6 (échange RSA), C7 (DHE export/Logjam), C9 (SSLv3), C10 (TLS
+#    1.0/CBC) et C11 (OpenSSL 1.0.1f) sont vulnérables PAR CONCEPTION. Ne jamais
+#    router ce réseau vers Internet.
+
+services:
+  portal:
+    build: ./app
+    environment:
+      LAB_CIDR: "172.28.0.0/16"
+      LAB_DOMAIN: "bank.tp.lan"
+      # Les flags sont partagés portail↔cibles pour cohérence des empreintes.
+      FLAG_C1: "${FLAG_C1:-FLAG{asn1_walk_then_verify_the_signature}}"
+      FLAG_C2: "${FLAG_C2:-FLAG{sniff_dissect_craft_send}}"
+      FLAG_C3: "${FLAG_C3:-FLAG{cleartext_http_has_no_secrets}}"
+      FLAG_C4: "${FLAG_C4:-FLAG{identity_without_pki_is_no_identity}}"
+      FLAG_C5: "${FLAG_C5:-FLAG{a_leaked_key_breaks_forward_secrecy}}"
+      FLAG_C6: "${FLAG_C6:-FLAG{no_ephemeral_means_retroactive_decryption}}"
+      FLAG_C7: "${FLAG_C7:-FLAG{export_dh_512_is_precomputable}}"
+      FLAG_C8: "${FLAG_C8:-FLAG{downgrade_then_read_in_cleartext}}"
+      FLAG_C9: "${FLAG_C9:-FLAG{sslv3_cbc_padding_is_an_oracle}}"
+      FLAG_C10: "${FLAG_C10:-FLAG{predictable_iv_enables_chosen_plaintext}}"
+      FLAG_C11: "${FLAG_C11:-FLAG{heartbeat_payload_length_unchecked}}"
+    volumes:
+      - labdata:/data          # file de jobs + paire RSA du portail
+    networks:
+      lab: { ipv4_address: 172.28.0.10 }
+
+  victim-client:
+    build: ./victim-client
+    depends_on: [portal]
+    volumes:
+      - labdata:/data          # lit la file de jobs armée par le portail
+    networks:
+      lab: { ipv4_address: 172.28.0.11 }
+
+  # ───────────────────────────── Prise en main ─────────────────────────── #
+  c1-openssl-warmup:
+    build:
+      context: ./targets/openssl-warmup
+      args:
+        FLAG_C1: "${FLAG_C1:-FLAG{asn1_walk_then_verify_the_signature}}"
+    depends_on: [portal]
+    ports: ["8451:8451"]
+    networks: { lab: { ipv4_address: 172.28.0.21 } }
+
+  c2-scapy-warmup:
+    build: ./targets/scapy-warmup
+    environment:
+      FLAG_C2: "${FLAG_C2:-FLAG{sniff_dissect_craft_send}}"
+    cap_add: [NET_RAW, NET_ADMIN]     # Scapy : accès brut au réseau (L2)
+    networks: { lab: { ipv4_address: 172.28.0.22 } }
+
+  # ─────────────────────────── Interception réseau ─────────────────────── #
+  c3-mitm-http:
+    build: ./targets/mitm-http
+    depends_on: [portal]
+    ports: ["8453:8453"]
+    networks: { lab: { ipv4_address: 172.28.0.23 } }
+
+  # ───────────────────────── Attaques TLS proprement ───────────────────── #
+  c4-self-signed:
+    build: ./targets/self-signed
+    depends_on: [portal]
+    ports: ["8441:8441"]
+    networks: { lab: { ipv4_address: 172.28.0.24 } }
+
+  c5-key-leak:
+    build: ./targets/key-leak
+    depends_on: [portal]
+    ports: ["8442:8442"]
+    volumes:
+      - labdata:/leak:ro       # expose la clé RSA du portail (fuite volontaire)
+    networks: { lab: { ipv4_address: 172.28.0.25 } }
+
+  c6-pfs-rsa:
+    build: ./targets/pfs-rsa
+    depends_on: [portal]
+    ports: ["8447:8447"]
+    networks: { lab: { ipv4_address: 172.28.0.26 } }
+
+  c7-logjam:
+    build: ./targets/logjam
+    environment:
+      FLAG_C7: "${FLAG_C7:-FLAG{export_dh_512_is_precomputable}}"
+    depends_on: [portal]
+    ports: ["8448:8448"]
+    networks: { lab: { ipv4_address: 172.28.0.27 } }
+
+  c8-ssl-strip:
+    build: ./targets/ssl-strip
+    depends_on: [portal]
+    ports: ["8006:80", "8443:8443"]
+    networks: { lab: { ipv4_address: 172.28.0.28 } }
+
+  c9-poodle:
+    build: ./targets/poodle
+    environment:
+      FLAG_C9: "${FLAG_C9:-FLAG{sslv3_cbc_padding_is_an_oracle}}"
+    depends_on: [portal]
+    ports: ["8444:8444"]
+    networks: { lab: { ipv4_address: 172.28.0.29 } }
+
+  c10-beast:
+    build: ./targets/beast
+    environment:
+      FLAG_C10: "${FLAG_C10:-FLAG{predictable_iv_enables_chosen_plaintext}}"
+    depends_on: [portal]
+    ports: ["8446:8446"]
+    networks: { lab: { ipv4_address: 172.28.0.30 } }
+
+  c11-heartbleed:
+    build: ./targets/heartbleed
+    environment:
+      FLAG_C11: "${FLAG_C11:-FLAG{heartbeat_payload_length_unchecked}}"
+    depends_on: [portal]
+    ports: ["8445:8445"]
+    networks: { lab: { ipv4_address: 172.28.0.31 } }
+
+volumes:
+  labdata:
+
+networks:
+  lab:
+    driver: bridge
+    internal: false            # passer à true pour couper tout accès sortant
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

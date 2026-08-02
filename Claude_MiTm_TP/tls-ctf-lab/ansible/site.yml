@@ -1,0 +1,19 @@
+---
+# Déploiement du TP « Sécurité HTTPS » en salle.
+#   docker/ansible : ansible-playbook site.yml
+#
+# Deux plays : le portail sur la machine prof, les cibles+victime sur les postes.
+
+- name: Portail central (machine prof)
+  hosts: teacher
+  become: true
+  roles:
+    - common
+    - portal
+
+- name: Cibles vulnérables + client-victime (postes étudiants)
+  hosts: students
+  become: true
+  roles:
+    - common
+    - targets

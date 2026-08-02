@@ -1,0 +1,85 @@
+/* TLS-LAB — thème « console d'inspection de handshake ».
+   Palette : encre profonde (#0e1420) / brume (#8aa0b4) / teal « sécurisé »
+   (#39c6a6) / ambre « rétrogradation » (#e0a03a) / rouge « faible » (#e5606a).
+   Display monospace (motif handshake) + corps sans-serif système. */
+
+:root {
+  --ink: #0e1420; --panel: #151d2b; --line: #263349;
+  --fog: #8aa0b4; --paper: #e7eef5;
+  --teal: #39c6a6; --amber: #e0a03a; --red: #e5606a;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ink); color: var(--paper);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--teal); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, .num, .num-inline { font-family: var(--mono); }
+
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 22px; border-bottom: 1px solid var(--line); background: #0b1019;
+}
+.brand { color: var(--paper); font-family: var(--mono); font-weight: 600; }
+.brand-mark { color: var(--teal); }
+.brand-sub { color: var(--fog); font-weight: 400; font-size: 12px; margin-left: 6px; }
+.warn { color: var(--amber); font-size: 12px; letter-spacing: .02em; }
+
+.wrap { max-width: 940px; margin: 0 auto; padding: 26px 22px 60px; }
+h1 { font-size: 26px; margin: 6px 0 14px; }
+.lede { color: var(--fog); max-width: 68ch; }
+.back, .brand:focus-visible, a:focus-visible { outline-offset: 3px; }
+.back { display: inline-block; color: var(--fog); font-size: 13px; margin-bottom: 8px; }
+
+/* Grille de cartes */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; margin-top: 22px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.card-head { display: flex; align-items: baseline; gap: 10px; }
+.num { color: var(--fog); font-size: 13px; }
+.num-inline { color: var(--fog); }
+.card h2 { font-size: 16px; margin: 0; }
+.skill { color: var(--fog); font-size: 13px; margin: 6px 0 12px; }
+.ports { color: var(--fog); font-size: 12px; margin: 10px 0; }
+.go { font-family: var(--mono); font-size: 13px; }
+
+/* Signature : bandeau du transport négocié */
+.handshake { border-radius: 7px; padding: 8px 10px; font-size: 12.5px; border: 1px solid var(--line); }
+.handshake code { color: inherit; }
+.handshake.nominal { border-left: 3px solid var(--teal); color: #bfe9dd; }
+.handshake.weak { border-left: 3px solid var(--red); color: #f2c2c6; background: rgba(229,96,106,.06); }
+.handshake.leak { border-left: 3px solid var(--amber); color: #f2dcae; background: rgba(224,160,58,.06); }
+
+/* Brief */
+.brief { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 18px 0; }
+.brief h3 { margin: 0 0 8px; font-size: 14px; color: var(--teal); text-transform: uppercase; letter-spacing: .06em; }
+.meta { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; margin: 12px 0 0; }
+.meta dt { color: var(--fog); font-size: 13px; }
+.meta dd { margin: 0; }
+.hint { font-family: var(--mono); font-size: 13px; color: #cfe0ef; }
+
+/* Actions */
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.action { flex: 1 1 200px; text-align: center; padding: 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); font-family: var(--mono); font-size: 13px; }
+.action.feed { border-left: 3px solid var(--teal); }
+.action.start { border-left: 3px solid var(--amber); }
+.action.verify { border-left: 3px solid var(--fog); }
+
+/* Formulaires */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; max-width: 460px; margin-top: 16px; }
+.panel label { display: block; color: var(--fog); font-size: 13px; margin-bottom: 6px; }
+.panel input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #0b1019; color: var(--paper); font-family: var(--mono); }
+.panel input:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.panel button { margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 8px; background: var(--teal); color: #06231d; font-weight: 600; cursor: pointer; }
+.panel button:hover { filter: brightness(1.08); }
+
+/* Bannières */
+.banner { border-radius: 8px; padding: 12px 14px; margin: 14px 0; font-size: 14px; }
+.banner.ok { border: 1px solid var(--teal); background: rgba(57,198,166,.08); color: #bfe9dd; }
+.banner.err { border: 1px solid var(--red); background: rgba(229,96,106,.08); color: #f2c2c6; }
+
+.foot { border-top: 1px solid var(--line); color: var(--fog); font-size: 12px; text-align: center; padding: 16px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

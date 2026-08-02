@@ -1,0 +1,93 @@
+# GÉNÉRÉ PAR ANSIBLE — instance isolée de l'étudiant « {{ login }} » (mode 3).
+# Réseau /24 dédié, INTERNE (aucun egress), AUCUN port publié : joignable
+# uniquement depuis le conteneur attaquant, lui-même accessible par SSH confiné.
+# Images PARTAGÉES (construites une fois) ; flags UNIQUES par étudiant.
+{% set net = instance_subnet_base ~ '.' ~ idx %}
+{% set flags = {} %}
+{% for n in range(1, 12) %}
+{%   if n == 1 %}
+{%     set _ = flags.__setitem__('FLAG_C1', common_c1_flag) %}
+{%   else %}
+{%     set _ = flags.__setitem__('FLAG_C' ~ n, 'FLAG{c' ~ n ~ '_' ~ ((login ~ '::' ~ n) | hash('sha1'))[:12] ~ '}') %}
+{%   endif %}
+{% endfor %}
+services:
+  portal:
+    image: tls-lab-portal
+    environment:
+      LAB_CIDR: "{{ net }}.0/24"
+      LAB_DOMAIN: "{{ lab_domain }}"
+{% for k, v in flags.items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+    volumes: [labdata:/data]
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: "{{ net }}.10" } }
+
+  victim-client:
+    image: tls-lab-victim
+    environment:
+      VICTIM_MODE: "standalone"
+      VICTIM_STANDALONE_TARGETS: >-
+        [{"challenge":"3","slug":"mitm-http","dest_ip":"c3-mitm-http","port":8453,"mode":"cleartext"},
+         {"challenge":"4","slug":"self-signed-mitm","dest_ip":"c4-self-signed","port":8441,"mode":"tls"},
+         {"challenge":"6","slug":"pfs-rsa-kx","dest_ip":"c6-pfs-rsa","port":8447,"mode":"tls"},
+         {"challenge":"7","slug":"logjam","dest_ip":"c7-logjam","port":8448,"mode":"tls"},
+         {"challenge":"8","slug":"ssl-strip","dest_ip":"c8-ssl-strip","port":8443,"mode":"tls"},
+         {"challenge":"9","slug":"poodle-sslv3","dest_ip":"c9-poodle","port":8444,"mode":"tls"},
+         {"challenge":"10","slug":"beast-tls10","dest_ip":"c10-beast","port":8446,"mode":"tls"},
+         {"challenge":"11","slug":"heartbleed","dest_ip":"c11-heartbleed","port":8445,"mode":"memory"}]
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: "{{ net }}.11" } }
+
+  # Point d'appui de l'étudiant : SEUL moyen d'attaquer (SSH ForceCommand).
+  attacker:
+    image: {{ attacker_image }}
+    container_name: tp-{{ login }}-attacker
+    cap_add: [NET_RAW, NET_ADMIN]
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: "{{ net }}.12" } }
+
+{% set svc = [
+  {'name':'c1-openssl-warmup','img':'openssl-warmup','ip':21,'conf':none},
+  {'name':'c2-scapy-warmup','img':'scapy-warmup','ip':22,'cap':true,'env':['FLAG_C2']},
+  {'name':'c3-mitm-http','img':'mitm-http','ip':23},
+  {'name':'c4-self-signed','img':'self-signed','ip':24},
+  {'name':'c5-key-leak','img':'key-leak','ip':25,'conf':'key-leak'},
+  {'name':'c6-pfs-rsa','img':'pfs-rsa','ip':26},
+  {'name':'c7-logjam','img':'logjam','ip':27,'env':['FLAG_C7']},
+  {'name':'c8-ssl-strip','img':'ssl-strip','ip':28},
+  {'name':'c9-poodle','img':'poodle','ip':29,'env':['FLAG_C9']},
+  {'name':'c10-beast','img':'beast','ip':30,'env':['FLAG_C10']},
+  {'name':'c11-heartbleed','img':'heartbleed','ip':31,'env':['FLAG_C11']},
+] %}
+{% for s in svc %}
+  {{ s.name }}:
+    image: tls-lab-{{ s.img }}
+{% if s.env is defined %}
+    environment:
+{% for e in s.env %}
+      {{ e }}: "{{ flags[e] }}"
+{% endfor %}
+{% endif %}
+{% if s.cap is defined and s.cap %}
+    cap_add: [NET_RAW, NET_ADMIN]
+{% endif %}
+{% if s.conf is defined and s.conf %}
+    volumes:
+      - "{{ lab_project_dir }}/targets/{{ s.conf }}/nginx.classroom.conf:/etc/nginx/nginx.conf:ro"
+{% endif %}
+    restart: unless-stopped
+    networks: { lab: { ipv4_address: "{{ net }}.{{ s.ip }}" } }
+
+{% endfor %}
+volumes:
+  labdata:
+
+networks:
+  lab:
+    driver: bridge
+    internal: true               # aucun egress : l'instance est hermétique
+    ipam:
+      config:
+        - subnet: "{{ net }}.0/24"

@@ -1,0 +1,5 @@
+---
+# Collections Ansible requises :  ansible-galaxy collection install -r requirements.yml
+collections:
+  - name: ansible.posix        # module synchronize (rsync)
+  - name: community.docker     # optionnel : modules docker_compose_v2 / docker_image

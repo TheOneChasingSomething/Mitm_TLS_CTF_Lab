@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Vérifier — {{ c.title }}{% endblock %}
+{% block body %}
+<a class="back" href="{{ url_for('challenge', cid=cid) }}">← challenge {{ cid }}</a>
+<h1>③ Vérifier le flag</h1>
+
+{% if result == "success" %}
+<div class="banner ok">✔ Flag valide — {{ points }} points. Challenge {{ cid }} résolu.</div>
+{% elif result == "failure" %}
+<div class="banner err">✘ Flag invalide. Vérifiez le format <code>FLAG{...}</code>.</div>
+{% endif %}
+
+<form method="post" class="panel">
+  <label for="flag">Flag récupéré</label>
+  <input id="flag" name="flag" placeholder="FLAG{...}" autocomplete="off" required>
+  <button type="submit">Soumettre</button>
+</form>
+{% endblock %}

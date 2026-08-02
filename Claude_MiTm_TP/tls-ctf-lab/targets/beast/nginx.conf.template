@@ -1,0 +1,30 @@
+# C10 — BEAST (CVE-2011-3389). nginx configuré pour n'accepter QUE TLS 1.0 avec
+# des suites CBC. En TLS 1.0, l'IV d'un enregistrement est le dernier bloc
+# chiffré du précédent : il est donc PRÉVISIBLE par un MITM, qui peut monter une
+# attaque à texte clair choisi adaptatif (blockwise chosen-boundary) pour
+# reconstituer le cookie de session octet par octet.
+#
+# ⚠️ TLS 1.0 + CBC réactivés par openssl-lab.cnf. Cible isolée uniquement.
+events {}
+http {
+  server {
+    listen 8446 ssl;
+    server_name bank.tp.lan;
+
+    ssl_certificate     /etc/nginx/certs/server.crt;
+    ssl_certificate_key /etc/nginx/certs/server.key;
+
+    # VULNÉRABILITÉ : TLS 1.0 exclusivement, suites CBC, pas de record splitting.
+    ssl_protocols       TLSv1;
+    ssl_ciphers         AES128-SHA:AES256-SHA:DES-CBC3-SHA;
+    ssl_prefer_server_ciphers on;
+
+    # Le flag est porté par un cookie de session — cible du chosen-plaintext.
+    add_header Set-Cookie "SESSIONFLAG=${FLAG_C10}; Path=/";
+
+    location / {
+      proxy_pass http://portal:5000;
+      proxy_set_header Host $host;
+    }
+  }
+}
