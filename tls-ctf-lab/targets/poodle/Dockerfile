@@ -18,6 +18,7 @@ RUN set -eux; \
     rm -f /etc/apt/sources.list.d/*.list 2>/dev/null || true; \
     printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99archive; \
     apt-get update && apt-get install -y --no-install-recommends openssl \
+    --allow-unauthenticated \
  && rm -rf /var/lib/apt/lists/*
 COPY gen-certs.sh /gen-certs.sh
 RUN sh /gen-certs.sh bank.tp.lan /usr/local/apache2/certs
