@@ -7,6 +7,12 @@
 # ⚠️ Suites EXPORT vulnérables PAR CONCEPTION. Conteneur isolé uniquement.
 FROM ubuntu:14.04
 
+# Ubuntu 14.04 « trusty » est EOL : ses dépôts ont migré vers
+# old-releases.ubuntu.com (archive.ubuntu.com / security.ubuntu.com → 404).
+RUN sed -i -e 's|archive.ubuntu.com/ubuntu|old-releases.ubuntu.com/ubuntu|g' \
+           -e 's|security.ubuntu.com/ubuntu|old-releases.ubuntu.com/ubuntu|g' \
+           /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
       apache2 openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*

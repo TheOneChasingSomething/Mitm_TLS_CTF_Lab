@@ -258,4 +258,5 @@ id_ed25519.*
 *.old
 *.orig
 *.tmp
-
+OLD*/
+*.gz

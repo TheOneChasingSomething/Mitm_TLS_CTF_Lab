@@ -7,6 +7,11 @@
 #    QUE dans le réseau de laboratoire isolé, jamais routable.
 FROM ubuntu:14.04
 
+# Ubuntu 14.04 « trusty » est EOL : dépôts migrés vers old-releases.ubuntu.com.
+RUN sed -i -e 's|archive.ubuntu.com/ubuntu|old-releases.ubuntu.com/ubuntu|g' \
+           -e 's|security.ubuntu.com/ubuntu|old-releases.ubuntu.com/ubuntu|g' \
+           /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential wget ca-certificates \
  && rm -rf /var/lib/apt/lists/*
