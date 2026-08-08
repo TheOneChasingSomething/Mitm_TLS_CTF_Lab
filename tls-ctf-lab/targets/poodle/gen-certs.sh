@@ -1,15 +1,29 @@
-#!/usr/bin/env sh
-# Génère les certificats auto-signés utilisés par les cibles.
-# Usage : gen-certs.sh <cn> <out_dir>
-set -eu
-CN="${1:-bank.tp.lan}"
-OUT="${2:-./certs}"
-mkdir -p "$OUT"
+# L'option -addext de openssl req n'existe pas dans les anciennes versions d'OpenSSL. Elle a été ajoutée dans OpenSSL 1.1.1.
+# openssl req -x509 -newkey rsa:2048 -nodes \
+  # -keyout "$OUT/server.key" -out "$OUT/server.crt" \
+  # -days 365 -subj "/C=FR/O=TP-TLS/CN=$CN" \
+  # -addext "subjectAltName=DNS:$CN"
+# Modern browser need the subjectAltName extension. (Subject Alternative Name (SAN))
+
+cat > "$OUT/openssl.cnf" <<EOF
+[req]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[dn]
+C = FR
+O = TP-TLS
+CN = $CN
+
+[v3_req]
+subjectAltName = DNS:$CN
+EOF
 
 openssl req -x509 -newkey rsa:2048 -nodes \
-  -keyout "$OUT/server.key" -out "$OUT/server.crt" \
-  -days 365 -subj "/C=FR/O=TP-TLS/CN=$CN" \
-  -addext "subjectAltName=DNS:$CN"
+  -keyout "$OUT/server.key" \
+  -out "$OUT/server.crt" \
+  -days 365 \
+  -config "$OUT/openssl.cnf"
 
-chmod 644 "$OUT/server.key"   # permissions volontairement laxistes (cf. C2)
-echo "certificat auto-signé généré pour CN=$CN dans $OUT"
+rm "$OUT/openssl.cnf"
