@@ -18,4 +18,6 @@ USER lab
 
 EXPOSE 5000
 # 2 workers suffisent pour un TP ; le flag mémoire (C5) reste résident par worker.
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-w", "2", "-k", "gthread", "--threads", "8", \
+     "--timeout", "120", "--graceful-timeout", "30", \
+     "-b", "0.0.0.0:5000", "app:app"]
