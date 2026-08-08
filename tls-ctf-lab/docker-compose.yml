@@ -35,6 +35,8 @@ services:
       - labdata:/data          # file de jobs + paire RSA du portail
     networks:
       lab: { ipv4_address: 172.28.0.10 }
+    ports:
+      - "5000:5000"
 
   victim-client:
     build: ./victim-client
