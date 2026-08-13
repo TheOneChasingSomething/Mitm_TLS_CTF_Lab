@@ -1,24 +1,24 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}TP Sécurité HTTPS{% endblock %}</title>
+  <title>{% block title %}HTTPS Security Lab{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="{{ url_for('index') }}">
       <span class="brand-mark">⇄</span> TLS-LAB
-      <span class="brand-sub">console de handshake</span>
+      <span class="brand-sub">handshake console</span>
     </a>
-    <nav class="warn">environnement isolé — usage pédagogique uniquement</nav>
+    <nav class="warn">isolated environment — educational use only</nav>
   </header>
   <main class="wrap">
     {% block body %}{% endblock %}
   </main>
   <footer class="foot">
-    ANSSI · CFSSI — TP « Sécurité HTTPS » · réseau {{ domain if domain else 'lab' }}
+    ANSSI · CFSSI — "HTTPS Security" lab · network {{ domain if domain else 'lab' }}
   </footer>
 </body>
 </html>

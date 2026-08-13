@@ -1,27 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Démarrer — {{ c.title }}{% endblock %}
+{% block title %}Start — {{ c.title }}{% endblock %}
 {% block body %}
 <a class="back" href="{{ url_for('challenge', cid=cid) }}">← challenge {{ cid }}</a>
-<h1>② Démarrer le challenge</h1>
+<h1>② Start the challenge</h1>
 <p class="lede">
-  Indiquez l'IP de <strong>destination</strong> vers laquelle armer le
-  client-victime. Il émettra alors le trafic à intercepter. Seules les adresses
-  privées du réseau de laboratoire (<code>{{ lab_cidr }}</code>) sont acceptées.
+  Enter the <strong>destination</strong> IP to arm the victim client toward — it
+  is the <strong>target</strong>'s IP, not the victim's. The client will then
+  emit the traffic to intercept. Only private addresses of the lab network
+  (<code>{{ lab_cidr }}</code>) are accepted.
 </p>
 
 {% if error %}<div class="banner err">{{ error }}</div>{% endif %}
 {% if token %}
 <div class="banner ok">
-  Client-victime armé. Jeton <code>{{ token }}</code> — trafic généré vers
-  <code>{{ dest_ip }}</code> sur le port {{ c.target_port }}. Lancez votre
-  capture / MITM maintenant.
+  Victim client armed. Token <code>{{ token }}</code> — traffic generated toward
+  <code>{{ dest_ip }}</code> on port {{ c.target_port }}. Start your capture /
+  MITM now.
 </div>
 {% endif %}
 
 <form method="post" class="panel">
-  <label for="dest_ip">IP de destination (réseau lab)</label>
+  <label for="dest_ip">Destination IP (lab network)</label>
   <input id="dest_ip" name="dest_ip" placeholder="172.28.0.42"
          pattern="[0-9.]+" autocomplete="off" required>
-  <button type="submit">Armer le client-victime</button>
+  <button type="submit">Arm the victim client</button>
 </form>
 {% endblock %}

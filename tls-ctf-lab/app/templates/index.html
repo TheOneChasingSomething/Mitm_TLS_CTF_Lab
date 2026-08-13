@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}TP Sécurité HTTPS — tableau de bord{% endblock %}
+{% block title %}HTTPS Security Lab — dashboard{% endblock %}
 {% block body %}
-<h1>Tableau de bord</h1>
+<h1>Dashboard</h1>
 <p class="lede">
-  Douze challenges, de la prise en main de l'outillage (OpenSSL, Scapy) à
-  l'exploitation des couches de la sécurité HTTPS : identité PKI, gestion des
-  secrets, négociation de protocole, implémentation. Chaque cible expose un
-  <em>front-end volontairement vulnérable</em> devant un portail commun.
+  Twelve challenges, from tooling warm-ups (OpenSSL, Scapy) to the exploitation
+  of every layer of HTTPS security: PKI identity, secret management, protocol
+  negotiation, implementation. Each target exposes a
+  <em>deliberately vulnerable front-end</em> in front of a shared portal.
 </p>
 
 <div class="grid">
@@ -17,15 +17,15 @@
       <h2>{{ c.title }}</h2>
     </div>
     <p class="skill">{{ c.skill }}</p>
-    <!-- Signature : le bandeau encode le transport négocié → tout de suite
-         lisible qu'un SSLv3/CBC ou une clé exposée est « faible ». -->
-    {% set weak_markers = ['SSL 3.0','TLS 1.0','HTTP 80','clair','1.0.1f','non validé','échange RSA','DH 512'] %}
+    <!-- Badge: the banner encodes the negotiated transport → a weak SSLv3/CBC
+         or an exposed key reads as "weak" at a glance. -->
+    {% set weak_markers = ['SSL 3.0','TLS 1.0','TLS 1.1','HTTP 80','cleartext','1.0.1f','not validated','RSA key exchange','DH group','Heartbeat'] %}
     {% set is_weak = c.encrypted_by in ['tls','memory','cleartext'] and weak_markers|select('in', c.transport)|list %}
     <div class="handshake {{ 'weak' if is_weak else ('leak' if c.encrypted_by=='rsa-oaep' else 'nominal') }}">
       <code>{{ c.transport }}</code>
     </div>
-    <div class="ports">port cible <strong>{{ c.target_port }}</strong> · {{ c.points }} pts</div>
-    <a class="go" href="{{ url_for('challenge', cid=cid) }}">Ouvrir →</a>
+    <div class="ports">target port <strong>{{ c.target_port }}</strong> · {{ c.points }} pts</div>
+    <a class="go" href="{{ url_for('challenge', cid=cid) }}">Open →</a>
   </article>
   {% endfor %}
 </div>

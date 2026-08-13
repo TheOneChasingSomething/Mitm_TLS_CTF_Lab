@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Challenge {{ cid }} — {{ c.title }}{% endblock %}
 {% block body %}
-<a class="back" href="{{ url_for('index') }}">← tableau de bord</a>
+<a class="back" href="{{ url_for('index') }}">← dashboard</a>
 <h1><span class="num-inline">{{ '%02d'|format(cid|int) }}</span> {{ c.title }}</h1>
 
 <div class="handshake {{ 'leak' if c.encrypted_by=='rsa-oaep' else 'weak' }}">
@@ -9,19 +9,19 @@
 </div>
 
 <section class="brief">
-  <h3>Objectif</h3>
+  <h3>Objective</h3>
   <p>{{ c.objective }}</p>
   <dl class="meta">
-    <dt>Compétence</dt><dd>{{ c.skill }}</dd>
-    <dt>Port de la cible</dt><dd>{{ c.target_port }}</dd>
-    <dt>Barème</dt><dd>{{ c.points }} points</dd>
-    <dt>Indice</dt><dd class="hint">{{ c.hint }}</dd>
+    <dt>Skill</dt><dd>{{ c.skill }}</dd>
+    <dt>Target port</dt><dd>{{ c.target_port }}</dd>
+    <dt>Points</dt><dd>{{ c.points }} points</dd>
+    <dt>Hint</dt><dd class="hint">{{ c.hint }}</dd>
   </dl>
 </section>
 
 <div class="actions">
-  <a class="action feed" href="{{ url_for('flag_feed', cid=cid) }}">① Flux du flag (chiffré)</a>
-  <a class="action start" href="{{ url_for('start', cid=cid) }}">② Démarrer (IP destination)</a>
-  <a class="action verify" href="{{ url_for('verify', cid=cid) }}">③ Vérifier le flag</a>
+  <a class="action feed" href="{{ url_for('flag_feed', cid=cid) }}">① Flag feed (encrypted)</a>
+  <a class="action start" href="{{ url_for('start', cid=cid) }}">② Start (destination IP)</a>
+  <a class="action verify" href="{{ url_for('verify', cid=cid) }}">③ Verify flag</a>
 </div>
 {% endblock %}
