@@ -115,7 +115,7 @@ def flag_feed(cid):
         payload = {
             "scheme": "RSA-OAEP-SHA256",
             "ciphertext_b64": encrypt_flag(c["flag"]),
-            "hint": "Clé privée exposée sous /.well-known/backup/server.key",
+            "hint": "Private key exposed at /.well-known/backup/server.key",
         }
         return Response(json.dumps(payload, indent=2), mimetype="application/json")
 
@@ -124,16 +124,16 @@ def flag_feed(cid):
         # _MEMORY_SECRET et n'est exfiltrable que par la lecture hors-limites
         # Heartbleed du front-end OpenSSL vulnérable.
         _ = _MEMORY_SECRET  # maintenu référencé → résident en mémoire
-        return Response("OK — service de battement de cœur actif.\n", mimetype="text/plain")
+        return Response("OK — heartbeat service active.\n", mimetype="text/plain")
 
     if mode == "cert":
         # Challenge 1 (prise en main OpenSSL) : le flag n'est PAS renvoyé ici ;
         # il est embarqué dans le certificat X.509 servi par la cible (champ OU).
         # L'étudiant doit récupérer et inspecter le certificat lui-même.
         return Response(
-            "Le flag est embarqué dans le certificat X.509 servi par la cible.\n"
-            "Récupérez-le puis inspectez-le :\n"
-            "  openssl s_client -connect CIBLE:{port} -showcerts </dev/null "
+            "The flag is embedded in the X.509 certificate served by the target.\n"
+            "Retrieve it, then inspect it:\n"
+            "  openssl s_client -connect TARGET:{port} -showcerts </dev/null "
             "| openssl x509 -text -noout\n".format(port=c["target_port"]),
             mimetype="text/plain",
         )
@@ -142,9 +142,9 @@ def flag_feed(cid):
         # Challenge 2 (prise en main Scapy) : le flag est émis/répondu sur le
         # réseau par la balise Scapy de la cible, jamais par cette route HTTP.
         return Response(
-            "Le flag n'est pas distribué ici. Reniflez la balise UDP/{port} "
-            "de la cible avec Scapy, puis répondez par le paquet magique "
-            "attendu pour obtenir le flag.\n".format(port=c["target_port"]),
+            "The flag is not delivered here. Sniff the target's UDP/{port} "
+            "beacon with Scapy, then reply with the expected magic packet to "
+            "obtain the flag.\n".format(port=c["target_port"]),
             mimetype="text/plain",
         )
 
@@ -157,11 +157,11 @@ def flag_feed(cid):
         _net = ipaddress.ip_network(LAB_CIDR, strict=False)
         _recon = str(_net.network_address + 20)
         return Response(
-            "Le flag n'est pas distribué ici. Cartographiez le lab avec nmap :\n"
-            f"  nmap -sn {LAB_CIDR}                     # hôtes vivants\n"
-            f"  nmap -p- -sV {_recon}               # ports + versions du service recon\n"
-            f"  nmap -p9000 --script http-title {_recon}   # le flag est dans le titre HTTP\n"
-            "Puis dressez l'inventaire IP:port des challenges suivants.\n",
+            "The flag is not delivered here. Map the lab with nmap:\n"
+            f"  nmap -sn {LAB_CIDR}                     # live hosts\n"
+            f"  nmap -p- -sV {_recon}               # ports + versions of the recon service\n"
+            f"  nmap -p9000 --script http-title {_recon}   # the flag is in the HTTP title\n"
+            "Then build the IP:port inventory of the following challenges.\n",
             mimetype="text/plain",
         )
 
@@ -196,9 +196,9 @@ def start(cid):
             c=c,
             lab_cidr=LAB_CIDR,
             error=(
-                f"IP refusée. Seules les adresses privées de {LAB_CIDR} "
-                "(réseau du laboratoire) sont autorisées. Le portail n'attaque "
-                "jamais une cible hors périmètre."
+                f"IP refused. Only private addresses of {LAB_CIDR} "
+                "(the lab network) are allowed. The portal never attacks a "
+                "target outside its scope."
             ),
         ), 400
 
