@@ -4,7 +4,7 @@
 # Images PARTAGÉES (construites une fois) ; flags UNIQUES par étudiant.
 {% set net = instance_subnet_base ~ '.' ~ idx %}
 {% set flags = {} %}
-{% for n in range(1, 12) %}
+{% for n in range(0, 12) %}
 {%   if n == 1 %}
 {%     set _ = flags.__setitem__('FLAG_C1', common_c1_flag) %}
 {%   else %}
@@ -49,6 +49,7 @@ services:
     networks: { lab: { ipv4_address: "{{ net }}.12" } }
 
 {% set svc = [
+  {'name':'c0-recon','img':'recon','ip':20,'env':['FLAG_C0']},
   {'name':'c1-openssl-warmup','img':'openssl-warmup','ip':21,'conf':none},
   {'name':'c2-scapy-warmup','img':'scapy-warmup','ip':22,'cap':true,'env':['FLAG_C2']},
   {'name':'c3-mitm-http','img':'mitm-http','ip':23},

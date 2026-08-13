@@ -260,3 +260,6 @@ id_ed25519.*
 *.tmp
 OLD*/
 *.gz
+
+SOLUTIONS.md
+REVUE-*

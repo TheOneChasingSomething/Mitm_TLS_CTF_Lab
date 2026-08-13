@@ -20,6 +20,7 @@ services:
       LAB_CIDR: "172.28.0.0/16"
       LAB_DOMAIN: "bank.tp.lan"
       # Les flags sont partagés portail↔cibles pour cohérence des empreintes.
+      FLAG_C0: "${FLAG_C0:-FLAG{map_the_terrain_before_the_assault}}"
       FLAG_C1: "${FLAG_C1:-FLAG{asn1_walk_then_verify_the_signature}}"
       FLAG_C2: "${FLAG_C2:-FLAG{sniff_dissect_craft_send}}"
       FLAG_C3: "${FLAG_C3:-FLAG{cleartext_http_has_no_secrets}}"
@@ -45,6 +46,13 @@ services:
       lab: { ipv4_address: 172.28.0.11 }
 
   # ───────────────────────────── Prise en main ─────────────────────────── #
+  c0-recon:
+    build: ./targets/recon
+    environment:
+      FLAG_C0: "${FLAG_C0:-FLAG{map_the_terrain_before_the_assault}}"
+    # Pas de port publié : à découvrir en balayant le sous-réseau du lab.
+    networks: { lab: { ipv4_address: 172.28.0.20 } }
+
   c1-openssl-warmup:
     build:
       context: ./targets/openssl-warmup

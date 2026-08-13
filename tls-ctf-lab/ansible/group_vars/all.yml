@@ -24,6 +24,7 @@ image_tarball_dir: "/opt/tls-lab/images"
 # Le MÊME jeu est déployé au portail (prof) et aux cibles (étudiants) afin que
 # les empreintes de vérification concordent.
 flags:
+  FLAG_C0:  "FLAG{map_the_terrain_before_the_assault}"
   FLAG_C1:  "FLAG{asn1_walk_then_verify_the_signature}"
   FLAG_C2:  "FLAG{sniff_dissect_craft_send}"
   FLAG_C3:  "FLAG{cleartext_http_has_no_secrets}"
