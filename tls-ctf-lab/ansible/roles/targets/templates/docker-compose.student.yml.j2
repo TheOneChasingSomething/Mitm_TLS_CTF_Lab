@@ -3,6 +3,7 @@
 # cibles proxifient vers le PORTAIL CENTRAL de la prof : le nom d'hôte 'portal'
 # est résolu vers {{ teacher_ip }} par extra_hosts. Aucun portail local ici.
 {% set svc = [
+  {'name':'c0-recon','ctx':'recon','ip':20,'ports':[],'env':{'FLAG_C0':flags.FLAG_C0},'host':false},
   {'name':'c1-openssl-warmup','ctx':'openssl-warmup','ip':21,'ports':['8451:8451'],'args':{'FLAG_C1':flags.FLAG_C1},'host':true},
   {'name':'c2-scapy-warmup','ctx':'scapy-warmup','ip':22,'ports':[],'env':{'FLAG_C2':flags.FLAG_C2},'cap':true,'host':false},
   {'name':'c3-mitm-http','ctx':'mitm-http','ip':23,'ports':['8453:8453'],'host':true},

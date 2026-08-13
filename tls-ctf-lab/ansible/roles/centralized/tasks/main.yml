@@ -20,6 +20,7 @@
     - { tag: "portal",         ctx: "app" }
     - { tag: "victim",         ctx: "victim-client" }
     - { tag: "attacker",       ctx: "attacker" }
+    - { tag: "recon",          ctx: "targets/recon" }
     - { tag: "openssl-warmup", ctx: "targets/openssl-warmup", args: "--build-arg FLAG_C1={{ common_c1_flag }}" }
     - { tag: "scapy-warmup",   ctx: "targets/scapy-warmup" }
     - { tag: "mitm-http",      ctx: "targets/mitm-http" }

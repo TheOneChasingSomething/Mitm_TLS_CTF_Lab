@@ -50,6 +50,24 @@ def _flag(env_key: str, default: str) -> str:
 
 CHALLENGES = {
     # ─────────────────────────── Prise en main ──────────────────────────── #
+    "0": {
+        "slug": "recon",
+        "title": "Reconnaissance réseau (nmap)",
+        "points": 10,
+        "skill": "Découverte réseau : balayage d'hôtes et de ports avec nmap",
+        "objective": (
+            "Avant d'attaquer, cartographiez le laboratoire. Avec nmap, balayez "
+            "le sous-réseau du lab pour dresser l'inventaire des services des "
+            "challenges suivants (couples IP:port de C1 à C11). Un service de "
+            "reconnaissance est à découvrir sur un port non standard : son titre "
+            "HTTP contient le flag."
+        ),
+        "transport": "TCP (découverte de services — aucun chiffrement)",
+        "target_port": 9000,
+        "encrypted_by": "recon",
+        "hint": "nmap -sn 172.28.0.0/24 (hôtes vivants) ; nmap -p- -sV 172.28.0.20 ; le flag est dans le titre HTTP (--script http-title).",
+        "flag": _flag("FLAG_C0", "FLAG{map_the_terrain_before_the_assault}"),
+    },
     "1": {
         "slug": "openssl-warmup",
         "title": "Prise en main d'OpenSSL",

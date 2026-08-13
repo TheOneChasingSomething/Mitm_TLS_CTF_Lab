@@ -148,6 +148,23 @@ def flag_feed(cid):
             mimetype="text/plain",
         )
 
+    if mode == "recon":
+        # Challenge 0 (reconnaissance) : le flag n'est PAS distribué ici. Il est
+        # porté par un service à découvrir au balayage nmap (titre HTTP). Les
+        # adresses sont dérivées de LAB_CIDR → correctes en local (172.28.0.0/16)
+        # comme en instance isolée (172.29.<i>.0/24).
+        import ipaddress
+        _net = ipaddress.ip_network(LAB_CIDR, strict=False)
+        _recon = str(_net.network_address + 20)
+        return Response(
+            "Le flag n'est pas distribué ici. Cartographiez le lab avec nmap :\n"
+            f"  nmap -sn {LAB_CIDR}                     # hôtes vivants\n"
+            f"  nmap -p- -sV {_recon}               # ports + versions du service recon\n"
+            f"  nmap -p9000 --script http-title {_recon}   # le flag est dans le titre HTTP\n"
+            "Puis dressez l'inventaire IP:port des challenges suivants.\n",
+            mimetype="text/plain",
+        )
+
     # mode == "tls" ou "cleartext" : le flag est en clair applicatif.
     #  - "tls"       → sa confidentialité repose ENTIÈREMENT sur le front-end TLS
     #                  (volontairement cassable) placé devant le portail ;

@@ -56,7 +56,7 @@ def _insecure_ctx() -> ssl.SSLContext:
 
 # Les warm-ups (OpenSSL, Scapy) sont des exercices d'interaction DIRECTE avec la
 # cible : aucun trafic victime à générer.
-_NO_VICTIM = {"openssl-warmup", "scapy-warmup"}
+_NO_VICTIM = {"recon", "openssl-warmup", "scapy-warmup"}
 # Challenges dont le trafic victime circule en HTTP clair (interceptable tel quel).
 _PLAINTEXT = {"ssl-strip", "mitm-http"}
 
