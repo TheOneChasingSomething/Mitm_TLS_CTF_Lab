@@ -17,21 +17,21 @@ host that is on that network.
 | **Portal** (scoreboard/arming) | `172.28.0.10:5000` | web UI — where you read objectives, arm, submit flags |
 | **Victim client** | `172.28.0.11` | replays traffic on demand; accepts *any* certificate |
 | **C0 recon** | *hidden — find it by scanning* | **start here:** map the lab yourself with nmap |
-| C1 openssl-warmup | `172.28.0.21:8451` | TLS — inspect a certificate |
-| C2 scapy-warmup | `172.28.0.22:8452/udp` | UDP beacon — sniff & forge |
-| C3 mitm-http | `172.28.0.23:8453` | cleartext HTTP |
-| C4 self-signed | `172.28.0.24:8441` | TLS, unvalidated identity |
-| C5 private-key-leak | `172.28.0.25:8442` | TLS, key exposed under `/.well-known/` |
-| C6 pfs-rsa | `172.28.0.26:8447` | TLS, RSA key exchange (no forward secrecy) |
-| C7 logjam | `172.28.0.27:8448` | TLS, export DHE (weak 512-bit group) |
-| C8 ssl-strip | `172.28.0.28:8443` (+HTTP) | TLS with no HSTS |
-| C9 poodle | `172.28.0.29:8444` | SSL 3.0, CBC |
-| C10 beast | `172.28.0.30:8446` | TLS 1.0, CBC |
-| C11 heartbleed | `172.28.0.31:8445` | TLS, OpenSSL 1.0.1f |
+| C1 openssl-warmup | *scan to find (C0)* | TLS — inspect a certificate |
+| C2 scapy-warmup | *scan to find (C0)* | UDP beacon — sniff & forge |
+| C3 mitm-http | *scan to find (C0)* | cleartext HTTP |
+| C4 self-signed | *scan to find (C0)* | TLS, unvalidated identity |
+| C5 private-key-leak | *scan to find (C0)* | TLS, key exposed under `/.well-known/` |
+| C6 pfs-rsa | *scan to find (C0)* | TLS, RSA key exchange (no forward secrecy) |
+| C7 logjam | *scan to find (C0)* | TLS, export DHE (weak 512-bit group) |
+| C8 ssl-strip | *scan to find (C0)* | TLS with no HSTS |
+| C9 poodle | *scan to find (C0)* | SSL 3.0, CBC |
+| C10 beast | *scan to find (C0)* | TLS 1.0, CBC |
+| C11 heartbleed | *scan to find (C0)* | TLS, OpenSSL 1.0.1f |
 
-The addresses `.21`→`.31` follow the challenge order; if in doubt, confirm with
-`docker network inspect <name>` or the `docker-compose.yml`. Published ports are
-also reachable at `localhost:<port>` from your host. Flags always look like
+The targets' addresses are **not listed here on purpose** — finding them is
+challenge **C0** (sweep the subnet with nmap, see Section 6). Once you have found
+a target's port, it is reachable from your host. Flags always look like
 `FLAG{...}`.
 
 ## 2. Open the portal
@@ -58,7 +58,7 @@ things happen:
 1. You **arm** the victim from the portal ("start challenge"). The single field
    asks for the **destination IP** — that is the **TARGET's** IP (where the
    victim should connect), **not** the victim's own IP. Example: for C9 you
-   enter `172.28.0.29`.
+   enter `<target-ip>`.
 2. You **position yourself on the path** between the victim (`172.28.0.11`) and
    the target, usually with **ARP spoofing**, then capture and/or tamper.
 
@@ -89,8 +89,8 @@ traffic through you. Either a ready tool or Scapy:
 
 ```sh
 # dsniff's arpspoof — run TWO of these (one per direction), each in its own shell:
-sudo arpspoof -i br-XXXX -t 172.28.0.11 172.28.0.29    # tell victim: "target is me"
-sudo arpspoof -i br-XXXX -t 172.28.0.29 172.28.0.11    # tell target: "victim is me"
+sudo arpspoof -i br-XXXX -t 172.28.0.11 <target-ip>    # tell victim: "target is me"
+sudo arpspoof -i br-XXXX -t <target-ip> 172.28.0.11    # tell target: "victim is me"
 ```
 - `-i <iface>`: the interface to send the spoofed replies on.
 - `-t <host>`: the *target of the poisoning* (whose cache you corrupt).
@@ -100,7 +100,7 @@ sudo arpspoof -i br-XXXX -t 172.28.0.29 172.28.0.11    # tell target: "victim is
 the portal so the victim generates traffic:
 
 ```sh
-sudo tcpdump -i br-XXXX -w cap.pcap "host 172.28.0.11 and host 172.28.0.29"
+sudo tcpdump -i br-XXXX -w cap.pcap "host 172.28.0.11 and host <target-ip>"
 ```
 - `-i <iface>`: capture interface.
 - `-w cap.pcap`: write raw packets to a file (open later in Wireshark).
@@ -112,7 +112,7 @@ Open `cap.pcap` in Wireshark to read or decrypt what you captured.
 
 ### OpenSSL — talk TLS and inspect certificates
 ```sh
-openssl s_client -connect 172.28.0.21:8451 -servername bank.tp.lan -showcerts
+openssl s_client -connect <target-ip>:<port> -servername bank.tp.lan -showcerts
 ```
 - `s_client`: OpenSSL's TLS client.
 - `-connect host:port`: where to connect.
@@ -154,7 +154,7 @@ openssl pkeyutl -decrypt -inkey key.pem -in blob.bin -out flag.txt \
 
 ### curl — fetch over HTTP(S)
 ```sh
-curl -k https://172.28.0.25:8442/.well-known/backup/server.key -o server.key
+curl -k https://<target-ip>:<port>/.well-known/backup/server.key -o server.key
 ```
 - `-k` / `--insecure`: accept the server's certificate without validation
   (self-signed lab certs).
@@ -162,7 +162,7 @@ curl -k https://172.28.0.25:8442/.well-known/backup/server.key -o server.key
 
 ### Capture & analysis
 ```sh
-sudo tcpdump -i br-XXXX -n -s 0 -w cap.pcap "tcp port 8453"
+sudo tcpdump -i br-XXXX -n -s 0 -w cap.pcap "tcp port <port>"
 ```
 - `-n`: don't resolve names (faster, clearer).
 - `-s 0`: capture whole packets (no truncation).
@@ -173,15 +173,15 @@ tshark -r cap.pcap -Y "http or tls"             # read a capture, display filter
 ```
 - `-r <file>`: read a saved capture.
 - `-Y "<expr>"`: **display** filter (post-capture) — e.g. `http`, `tls`,
-  `ip.addr==172.28.0.29`.
+  `ip.addr==<target-ip>`.
 - Wireshark GUI equivalent: *File ▸ Open*, then type the display filter.
 
 ### Fingerprinting a TLS service
 ```sh
-nmap --script ssl-enum-ciphers -p 8444 172.28.0.29     # which protocols/ciphers?
-nmap --script ssl-heartbleed   -p 8445 172.28.0.31     # Heartbleed present?
-nmap --script ssl-dh-params    -p 8448 172.28.0.27     # weak DH group?
-testssl.sh https://172.28.0.29:8444                    # broad TLS audit
+nmap --script ssl-enum-ciphers -p <port> <target-ip>     # which protocols/ciphers?
+nmap --script ssl-heartbleed   -p <port> <target-ip>     # Heartbleed present?
+nmap --script ssl-dh-params    -p <port> <target-ip>     # weak DH group?
+testssl.sh https://<target-ip>:<port>                    # broad TLS audit
 ```
 - `--script <name>`: run an Nmap Scripting Engine probe.
 - `-p <port>`: port to test.
@@ -192,8 +192,8 @@ testssl.sh https://172.28.0.29:8444                    # broad TLS audit
 Start with `sudo scapy` for an interactive shell, or run a script. The four verbs
 you need:
 ```python
-sniff(iface="br-XXXX", filter="udp port 8452", count=1, timeout=15)
-IP(dst="172.28.0.22")/UDP(dport=8452)/Raw(load=b"GIVE-FLAG")
+sniff(iface="br-XXXX", filter="udp port <port>", count=1, timeout=15)
+IP(dst="<target-ip>")/UDP(dport=<port>)/Raw(load=b"GIVE-FLAG")
 sr1(pkt, timeout=5)      # send one packet, return the first reply
 send(pkt)                # send at layer 3 (no reply expected)
 ```
@@ -211,73 +211,74 @@ send(pkt)                # send at layer 3 (no reply expected)
 Each entry gives the transport, the first command to run, and what to look for —
 not the full solution.
 
-**C0 — recon (start here, no arming).** Map the lab yourself instead of trusting
-the table above. Find live hosts, then the open ports and service versions:
+**C0 — recon (start here, no arming).** Map the lab yourself — the target
+addresses are not given to you. Find live hosts, then the open ports and service
+versions:
 ```sh
 nmap -sn 172.28.0.0/24                    # -sn = host discovery only (no port scan)
-nmap -p- -sV 172.28.0.20                  # -p- = all 65535 ports ; -sV = service/version
-nmap -p9000 --script http-title 172.28.0.20   # the flag is the page's HTTP title
+nmap -p- -sV <target-ip>                  # -p- = all 65535 ports ; -sV = service/version
+nmap -p<port> --script http-title <target-ip>   # the flag is the page's HTTP title
 ```
 A reconnaissance service hides on a **non-standard port**; its HTTP **title**
 carries the flag. Build the full `IP:port` inventory of C1→C11 as you go — you'll
 need it for every challenge that follows.
 
-**C1 — openssl-warmup (TLS, `172.28.0.21:8451`).** No arming. Pull the server's
+**C1 — openssl-warmup (TLS).** No arming. Pull the server's
 certificate and decode it; the flag is embedded in one of the certificate's
 **fields**. Start with:
-`echo | openssl s_client -connect localhost:8451 2>/dev/null | openssl x509 -noout -text`.
+`echo | openssl s_client -connect localhost:<port> 2>/dev/null | openssl x509 -noout -text`.
 The deeper exercise is to **verify the certificate's own signature by hand**
 (`asn1parse` to extract the signature `BIT STRING`, RSA-decrypt with the public
 key, compare to the digest of the body).
 
-**C2 — scapy-warmup (UDP, `172.28.0.22:8452`).** No arming. A beacon periodically
-broadcasts an instruction. **Sniff** it (`sniff(filter="udp port 8452")`), read
+**C2 — scapy-warmup (UDP).** No arming. A beacon periodically
+broadcasts an instruction. **Sniff** it (`sniff(filter="udp port <port>")`), read
 what packet it expects, then **forge and send** that "magic" datagram; the target
 answers with the flag.
 
-**C3 — mitm-http (cleartext HTTP, `172.28.0.23:8453`).** Arm with target
-`172.28.0.23`. Get on-path (Section 4), capture, and read the HTTP response — the
+**C3 — mitm-http (cleartext HTTP).** Arm with target
+`<target-ip>`. Get on-path (Section 4), capture, and read the HTTP response — the
 flag travels in cleartext because there is no TLS.
 
-**C4 — self-signed (TLS, `172.28.0.24:8441`).** The victim accepts *any*
-certificate. Arm with `172.28.0.24`, get on-path, and terminate TLS in the middle
+**C4 — self-signed (TLS).** The victim accepts *any*
+certificate. Arm with `<target-ip>`, get on-path, and terminate TLS in the middle
 with your **own** certificate (a transparent TLS proxy such as `mitmproxy` or
 `bettercap`); read the decrypted flag. The lesson: identity without PKI
 validation is no identity (RFC 5280).
 
-**C5 — private-key-leak (TLS, `172.28.0.25:8442`).** The server's **private key**
+**C5 — private-key-leak (TLS).** The server's **private key**
 is exposed under a public path, and the flag is published as an RSA-OAEP blob.
 Fetch the key with `curl -k`, then decrypt the blob with
 `openssl pkeyutl -decrypt … -pkeyopt rsa_padding_mode:oaep`.
 
-**C6 — pfs-rsa (TLS, `172.28.0.26:8447`).** The server uses **RSA key exchange**
+**C6 — pfs-rsa (TLS).** The server uses **RSA key exchange**
 (no ephemeral). Record the victim's encrypted TLS (`tcpdump -w`), obtain the
 exposed server key, then decrypt the capture **after the fact** in Wireshark
 (*Preferences ▸ Protocols ▸ TLS ▸ RSA keys list*). The lesson: without forward
 secrecy, one leaked key retroactively breaks every session.
 
-**C7 — logjam (TLS export DHE, `172.28.0.27:8448`).** Detect the weak 512-bit DH
+**C7 — logjam (TLS export DHE).** Detect the weak 512-bit DH
 group (`nmap --script ssl-dh-params`, `testssl.sh --logjam`). From an on-path
 position the export group can be forced and its discrete log solved to recover
 the session key. *This is the hardest challenge; ask your instructor about the
 provided solver.*
 
-**C8 — ssl-strip (TLS without HSTS, `172.28.0.28:8443` + HTTP).** No
+**C8 — ssl-strip (TLS without HSTS).** No
 Strict-Transport-Security header protects the login page. Arm, get on-path, and
 **downgrade** the victim from HTTPS to HTTP (`bettercap`'s HSTS/strip modules or
 `sslstrip`); read the flag in the resulting cleartext.
 
-**C9 — poodle (SSL 3.0, `172.28.0.29:8444`).** Confirm SSLv3/CBC is accepted
+**C9 — poodle (SSL 3.0).** Confirm SSLv3/CBC is accepted
 (`openssl s_client -ssl3 -connect …`). The flag rides in a session cookie
 recovered byte-by-byte through the CBC **padding oracle**. *PoC-based; see your
 instructor.*
 
-**C10 — beast (TLS 1.0 CBC, `172.28.0.30:8446`).** Confirm TLS 1.0/CBC
+**C10 — beast (TLS 1.0 CBC).** Confirm TLS 1.0/CBC
 (`openssl s_client -tls1 -connect …`). Predictable IVs enable a chosen-boundary
 attack on the cookie. *PoC-based; see your instructor.*
 
-**C11 — heartbleed (TLS, `172.28.0.31:8445`).** Confirm the flaw
-(`nmap --script ssl-heartbleed -p 8445 …`), then use a Heartbeat PoC (RFC 6520)
+**C11 — heartbleed (TLS).** Confirm the flaw
+(`nmap --script ssl-heartbleed -p <port> …`), then use a Heartbeat PoC (RFC 6520)
 to over-read up to 64 KB of process memory and find the flag in the dump.
 
 ## 7. Submitting a flag
