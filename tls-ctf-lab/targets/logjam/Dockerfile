@@ -1,21 +1,27 @@
 # C7 — Logjam (DHE export, CVE-2015-4000).
 #
-# Base Ubuntu 14.04 : sa pile OpenSSL (1.0.1f) embarque encore les suites EXPORT
-# nécessaires au groupe Diffie-Hellman de 512 bits. Les OpenSSL récents (≥ 1.0.2g)
-# les ont RETIRÉES — d'où l'épinglage d'une base héritée (cf. README §Caveats).
+# Base Debian 8 « jessie » : sa pile OpenSSL (1.0.1t) embarque encore les suites
+# EXPORT nécessaires au groupe Diffie-Hellman de 512 bits. Les OpenSSL récents
+# (≥ 1.0.2g) les ont RETIRÉES — d'où l'épinglage d'une base héritée. jessie est
+# choisi car son archive (archive.debian.org) répond encore, contrairement à
+# Ubuntu 14.04 dont old-releases ne sert plus les index de trusty (404).
 #
 # ⚠️ Suites EXPORT vulnérables PAR CONCEPTION. Conteneur isolé uniquement.
-FROM ubuntu:14.04
+FROM debian:8
 
-# Ubuntu 14.04 « trusty » est EOL : ses dépôts ont migré vers
-# old-releases.ubuntu.com (archive.ubuntu.com / security.ubuntu.com → 404).
-RUN sed -i -e 's|archive.ubuntu.com/ubuntu|old-releases.ubuntu.com/ubuntu|g' \
-           -e 's|security.ubuntu.com/ubuntu|old-releases.ubuntu.com/ubuntu|g' \
-           /etc/apt/sources.list
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      apache2 openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+# Debian 8 « jessie » est EOL : dépôts sur archive.debian.org, Release expirée
+# (KEYEXPIRED, non bloquant). Il faut DEUX sources : `main` ET le dépôt de
+# sécurité `jessie/updates` — sans ce dernier, la fermeture de dépendances des
+# paquets deb8u* (apache2-bin, perl, libssl…) n'est pas résoluble.
+RUN set -eux; \
+    { echo 'deb http://archive.debian.org/debian jessie main'; \
+      echo 'deb http://archive.debian.org/debian-security jessie/updates main'; \
+    } > /etc/apt/sources.list; \
+    printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99archive; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends --force-yes \
+        apache2 openssl ca-certificates; \
+    rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod ssl proxy proxy_http headers
 
