@@ -24,13 +24,16 @@ source "qemu" "lab" {
 
   # Amorçage cloud-init (identifiants SSH du build).
   http_directory = "${path.root}/http"
-  qemuargs = [
-    ["-smbios", "type=1,serial=ds=nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/"],
+  http_bind_address = "0.0.0.0"
+
+qemuargs = [
+    ["-smbios", "type=1,serial=ds=nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/"]
   ]
 
   ssh_username     = "lab"
   ssh_password     = "labtp"
   ssh_timeout      = "20m"
+  ssh_clear_authorized_keys = true
   shutdown_command = "echo labtp | sudo -S shutdown -P now"
   vm_name          = "tls-lab.qcow2"
 }
@@ -39,24 +42,35 @@ build {
   name    = "qemu"
   sources = ["source.qemu.lab"]
 
-  # Dépôt du lab dans la VM.
-  provisioner "file" {
-    source      = "${path.root}/.."
-    destination = "/home/lab/tls-ctf-lab"
+  # 1. Précréation du dossier cible sur la VM
+  provisioner "shell" {
+    inline = ["mkdir -p /home/lab/tls-ctf-lab"]
   }
 
-  # Installation de Docker et pré-construction des images (hors ligne ensuite).
+  # 2. Copie du contenu du dépôt
+  provisioner "file" {
+    source      = "${path.root}/../"
+    destination = "/home/lab/tls-ctf-lab/"
+  }
+
+# 3. Installation, build et lancement Docker
   provisioner "shell" {
     inline = [
       "echo labtp | sudo -S apt-get update",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-plugin",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg",
+      "sudo install -m 0755 -d /etc/apt/keyrings",
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg",
+      "sudo chmod a+r /etc/apt/keyrings/docker.gpg",
+      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+      "sudo apt-get update",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin",
       "sudo usermod -aG docker lab",
-      "cd /home/lab/tls-ctf-lab && sudo docker compose build",
-      "sudo systemctl enable docker",
+      "cd /home/lab/tls-ctf-lab && sudo docker compose -f docker-compose.yml build",
+      "cd /home/lab/tls-ctf-lab && sudo docker compose -f docker-compose.yml up -d",
+      "sudo systemctl enable docker"
     ]
   }
 
-  # Empreinte de traçabilité du build.
   post-processor "manifest" {
     output = "lab-vm-manifest.json"
   }
