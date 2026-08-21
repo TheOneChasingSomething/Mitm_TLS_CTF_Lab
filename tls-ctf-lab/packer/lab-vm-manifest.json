@@ -1,0 +1,19 @@
+{
+  "builds": [
+    {
+      "name": "lab",
+      "builder_type": "qemu",
+      "build_time": 1787319096,
+      "files": [
+        {
+          "name": "output-lab-vm/tls-lab.qcow2",
+          "size": 6513295360
+        }
+      ],
+      "artifact_id": "VM",
+      "packer_run_uuid": "fd729bc0-de20-d0de-8b9f-48417386f509",
+      "custom_data": null
+    }
+  ],
+  "last_run_uuid": "fd729bc0-de20-d0de-8b9f-48417386f509"
+}
