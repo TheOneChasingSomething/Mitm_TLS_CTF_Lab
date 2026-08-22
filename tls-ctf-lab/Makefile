@@ -4,6 +4,13 @@
 SSH_KEY_FILE := $(HOME)/.ssh/id_ed25519
 STUDENTS_FILE := students.txt
 
+# --- Configuration des artefacts VM ---
+OUT_DIR_CENTRAL := packer/output/prof_centralized
+VM_NAME_CENTRAL := packer-prof-centralized.qcow2
+
+OUT_DIR_STANDALONE := packer/output/prof_standalone
+VM_NAME_STANDALONE := packer-prof-standalone.qcow2
+
 build:            ## Construit toutes les images
 	docker compose build
 
@@ -91,8 +98,8 @@ deploy-ansible-prof-standalone: ## Déploie Ansible (mode autonome all-in-one)
 
 setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déploie le mode centralisé
 	@echo "==> 1. Nettoyage d'une ancienne VM QEMU et suppression des anciens artefacts"
-	-@pkill -f "qemu-system-x86_64.*output-prof-vm" || true
-	rm -rf packer/prof_centralized/output-prof-vm
+	-@pkill -f "qemu-system-x86_64.*$(OUT_DIR_CENTRAL)" || true
+	rm -rf $(OUT_DIR_CENTRAL)
 	@echo "==> 2. Génération de la clé SSH prof si absente"
 	@if [ ! -f $(SSH_KEY_FILE) ]; then \
 		ssh-keygen -t ed25519 -N "" -f $(SSH_KEY_FILE); \
@@ -101,9 +108,9 @@ setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déplo
 	cd packer/prof_centralized && \
 	export SSH_PUB_KEY="$$(cat $(SSH_KEY_FILE).pub)" && \
 	packer init . && \
-	packer build -force -only='qemu.*' .
+	packer build -force -var-file=variables.pkrvars.hcl -only='qemu.*' .
 	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22)"
-	qemu-system-x86_64 -enable-kvm -hda packer/prof_centralized/output-prof-vm/packer-prof.qcow2 -k fr -m 2G -cpu host \
+	qemu-system-x86_64 -enable-kvm -hda $(OUT_DIR_CENTRAL)/$(VM_NAME_CENTRAL) -k fr -m 2G -cpu host \
 		-netdev user,id=net0,hostfwd=tcp::2222-:22 \
 		-device virtio-net-pci,netdev=net0 \
 		-display gtk -daemonize
@@ -117,19 +124,19 @@ setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déplo
 
 setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode autonome
 	@echo "==> 1. Nettoyage d'une ancienne VM QEMU et suppression des anciens artefacts"
-	-@pkill -f "qemu-system-x86_64.*output-prof-vm" || true
-	rm -rf packer/prof_centralized/output-prof-vm
+	-@pkill -f "qemu-system-x86_64.*$(OUT_DIR_STANDALONE)" || true
+	rm -rf $(OUT_DIR_STANDALONE)
 	@echo "==> 2. Génération de la clé SSH prof si absente"
 	@if [ ! -f $(SSH_KEY_FILE) ]; then \
 		ssh-keygen -t ed25519 -N "" -f $(SSH_KEY_FILE); \
 	fi
 	@echo "==> 3. Lancement de Packer avec la clé SSH injectée"
-	cd packer/prof_centralized && \
+	cd packer/prof_standalone && \
 	export SSH_PUB_KEY="$$(cat $(SSH_KEY_FILE).pub)" && \
 	packer init . && \
-	packer build -force -only='qemu.*' .
+	packer build -force -var-file=variables.pkrvars.hcl -only='qemu.*' .
 	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22)"
-	qemu-system-x86_64 -enable-kvm -hda packer/prof_centralized/output-prof-vm/packer-prof.qcow2 -k fr -m 2G -cpu host \
+	qemu-system-x86_64 -enable-kvm -hda $(OUT_DIR_STANDALONE)/$(VM_NAME_STANDALONE) -k fr -m 2G -cpu host \
 		-netdev user,id=net0,hostfwd=tcp::2222-:22 \
 		-device virtio-net-pci,netdev=net0 \
 		-display gtk -daemonize

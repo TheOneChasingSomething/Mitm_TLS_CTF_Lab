@@ -1,0 +1,19 @@
+#cloud-config
+users:
+  - name: ansible
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_pub_key}
+
+ssh_pwauth: true
+
+chpasswd:
+  list: |
+    ansible:ansible
+  expire: false
+
+runcmd:
+  - systemctl enable ssh
+  - systemctl restart ssh

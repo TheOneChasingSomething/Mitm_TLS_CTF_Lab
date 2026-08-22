@@ -19,8 +19,8 @@ source "qemu" "prof" {
   disk_image       = true
   disk_size        = "20G"
   format           = "qcow2"
-  output_directory = "../output/prof_centralized"
-  vm_name          = "packer-prof-centralized.qcow2"
+  output_directory = "../output/prof_standalone/"
+  vm_name          = "packer-prof-standalone.qcow2"
 
   memory           = 2048
   cpus             = 2
