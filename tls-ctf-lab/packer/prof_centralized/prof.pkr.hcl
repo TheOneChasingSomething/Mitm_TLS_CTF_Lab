@@ -20,6 +20,7 @@ source "qemu" "prof" {
   disk_size        = "20G"
   format           = "qcow2"
   output_directory = "output-prof-vm"
+  vm_name          = "packer-prof.qcow2"
 
   memory           = 2048
   cpus             = 2
@@ -28,7 +29,6 @@ source "qemu" "prof" {
   ssh_password = "ansible"
   ssh_timeout  = "5m"
 
-  # On passe le user-data directement par le CD-ROM cidata généré dynamiquement
   cd_content = {
     "user-data" = templatefile("${path.root}/http/user-data", {
       ssh_pub_key = var.ssh_pub_key
@@ -41,22 +41,20 @@ source "qemu" "prof" {
 build {
   sources = ["source.qemu.prof"]
 
-  # 1. Attente de cloud-init + Installation des paquets de base
+  # 1. Installation des paquets de base
   provisioner "shell" {
     environment_vars = [
       "DEBIAN_FRONTEND=noninteractive",
       "NEEDRESTART_MODE=a"
     ]
     inline = [
-      "echo '==> Attente de la fin de cloud-init...'",
-      "cloud-init status --wait",
       "sudo sed -i 's/#$nrconf{restart} = .*/$nrconf{restart} = \"a\";/' /etc/needrestart/needrestart.conf 2>/dev/null || true",
       "sudo apt-get update",
       "sudo -E apt-get install -y ca-certificates curl gnupg rsync git"
     ]
   }
 
-  # 2. Dépôt et moteur Docker
+  # 2. Docker
   provisioner "shell" {
     environment_vars = [
       "DEBIAN_FRONTEND=noninteractive",
@@ -79,12 +77,6 @@ build {
     inline = [
       "sudo mkdir -p /home/ansible/tls-ctf-lab",
       "sudo chown -R ansible:ansible /home/ansible/tls-ctf-lab"
-    ]
-  }
-  # 4. Désactivation propre de cloud-init pour les démarrages futurs
-  provisioner "shell" {
-    inline = [
-      "sudo touch /etc/cloud/cloud-init.disabled"
     ]
   }
 }
