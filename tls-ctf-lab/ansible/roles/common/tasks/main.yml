@@ -11,14 +11,19 @@
 - name: Clé GPG du dépôt Docker
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /etc/apt/keyrings/docker.asc
+    dest: /etc/apt/keyrings/docker.gpg
     mode: "0644"
 
-- name: Dépôt Docker
-  ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+- name: Dépôt Docker (format deb822)
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: stable
+    architectures: amd64
+    signed_by: /etc/apt/keyrings/docker.gpg
     state: present
-    filename: docker
 
 - name: Docker Engine + Compose v2
   ansible.builtin.apt:

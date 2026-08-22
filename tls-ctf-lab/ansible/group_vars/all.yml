@@ -47,7 +47,21 @@ attacker_image: "tls-lab-attacker"
 # Flag du warm-up C1 : embarqué dans le certificat (image partagée) → commun à
 # toutes les instances. Les flags C2..C11 sont, eux, UNIQUES par étudiant
 # (dérivés du login) pour empêcher tout partage de flag.
-common_c1_flag: "{{ flags.FLAG_C1 }}"
+common_c1_flag: "FLAG{asn1_walk_then_verify_the_signature}"
+
+# Flags par défaut utilisés par le template Jinja2
+FLAG_C0: "FLAG{welcome_to_tls_ctf_lab}"
+FLAG_C1: "FLAG{asn1_walk_then_verify_the_signature}"
+FLAG_C2: "FLAG{scapy_beacon_found}"
+FLAG_C3: "FLAG{mitm_http_credentials_stolen}"
+FLAG_C4: "FLAG{self_signed_cert_accepted}"
+FLAG_C5: "FLAG{private_key_leak_decrypted}"
+FLAG_C6: "FLAG{pfs_rsa_no_forward_secrecy}"
+FLAG_C7: "FLAG{logjam_export_dh_broken}"
+FLAG_C8: "FLAG{ssl_strip_hsts_bypassed}"
+FLAG_C9: "FLAG{poodle_padding_oracle_cbc}"
+FLAG_C10: "FLAG{beast_cbc_iv_predicted}"
+FLAG_C11: "FLAG{heartbleed_memory_dumped}"
 
 student_instances:
   - { login: "etu01", ssh_pubkey: "ssh-ed25519 AAAA...remplacer... etu01" }

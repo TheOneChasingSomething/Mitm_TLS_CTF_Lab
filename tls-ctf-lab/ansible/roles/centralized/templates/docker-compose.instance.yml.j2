@@ -3,14 +3,20 @@
 # uniquement depuis le conteneur attaquant, lui-même accessible par SSH confiné.
 # Images PARTAGÉES (construites une fois) ; flags UNIQUES par étudiant.
 {% set net = instance_subnet_base ~ '.' ~ idx %}
-{% set flags = {} %}
-{% for n in range(0, 12) %}
-{%   if n == 1 %}
-{%     set _ = flags.__setitem__('FLAG_C1', common_c1_flag) %}
-{%   else %}
-{%     set _ = flags.__setitem__('FLAG_C' ~ n, 'FLAG{c' ~ n ~ '_' ~ ((login ~ '::' ~ n) | hash('sha1'))[:12] ~ '}') %}
-{%   endif %}
-{% endfor %}
+{% set flags = {
+  'FLAG_C0': 'FLAG{c0_' ~ ((login ~ '::0') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C1': common_c1_flag,
+  'FLAG_C2': 'FLAG{c2_' ~ ((login ~ '::2') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C3': 'FLAG{c3_' ~ ((login ~ '::3') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C4': 'FLAG{c4_' ~ ((login ~ '::4') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C5': 'FLAG{c5_' ~ ((login ~ '::5') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C6': 'FLAG{c6_' ~ ((login ~ '::6') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C7': 'FLAG{c7_' ~ ((login ~ '::7') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C8': 'FLAG{c8_' ~ ((login ~ '::8') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C9': 'FLAG{c9_' ~ ((login ~ '::9') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C10': 'FLAG{c10_' ~ ((login ~ '::10') | hash('sha1'))[:12] ~ '}',
+  'FLAG_C11': 'FLAG{c11_' ~ ((login ~ '::11') | hash('sha1'))[:12] ~ '}'
+} %}
 services:
   portal:
     image: tls-lab-portal
