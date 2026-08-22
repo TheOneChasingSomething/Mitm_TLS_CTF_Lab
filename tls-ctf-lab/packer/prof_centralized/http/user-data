@@ -1,0 +1,50 @@
+#cloud-config
+users:
+  - name: ansible
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_pub_key}
+
+ssh_pwauth: true
+
+chpasswd:
+  list: |
+    ansible:ansible
+  expire: false
+
+# Déposer le fichier Netplan pour l'IP statique sur br0
+write_files:
+  - path: /etc/netplan/99-static-ip.yaml
+    owner: root:root
+    permissions: '0600'
+    content: |
+      network:
+        version: 2
+        renderer: networkd
+        ethernets:
+          eth0:
+            dhcp4: false
+            addresses:
+              - 10.10.10.2/24
+            routes:
+              - to: default
+                via: 10.10.10.1
+            nameservers:
+              addresses: [1.1.1.1, 8.8.8.8]
+          ens3:
+            dhcp4: false
+            addresses:
+              - 10.10.10.2/24
+            routes:
+              - to: default
+                via: 10.10.10.1
+            nameservers:
+              addresses: [1.1.1.1, 8.8.8.8]
+
+# S'assurer que le service netplan/networkd s'applique au boot
+runcmd:
+  - netplan apply
+  - systemctl enable ssh
+  - systemctl restart ssh
