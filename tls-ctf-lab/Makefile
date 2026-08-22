@@ -66,19 +66,40 @@ setup-vm-packer-prof-standalone: ## Prépare SSH, la VM en NAT et valide Ansible
 	@echo "==> Temporisation pour la stabilisation d'OpenSSH..."
 	@sleep 5
 	@ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
-	@echo "==> 6. Validation de la connexion Ansible (ping)"
+	@echo "==> 6. Validation d'Ansible et déploiement réel du rôle centralized"
+		@if [ -f venv/bin/activate ]; then \
+			. venv/bin/activate && \
+			if ! command -v ansible >/dev/null 2>&1; then \
+				echo "[!] Erreur : Ansible n'est pas installé dans le venv"; exit 1; \
+			fi && \
+			cd ansible && \
+			echo "--> 6a. Ping de vérification..." && \
+			ansible prof_host -m ping -i inventory.ini || { echo "[!] Échec du ping"; exit 1; } && \
+			echo "--> 6b. Vérification de la syntaxe du playbook..." && \
+			ansible-playbook centralized.yml -i inventory.ini --syntax-check || { echo "[!] Erreur de syntaxe"; exit 1; } && \
+			echo "--> 6c. Application réelle du playbook centralized..." && \
+			ansible-playbook centralized.yml -i inventory.ini; \
+		elif [ -f ../venv/bin/activate ]; then \
+			. ../venv/bin/activate && \
+			if ! command -v ansible >/dev/null 2>&1; then \
+				echo "[!] Erreur : Ansible n'est pas installé dans le venv"; exit 1; \
+			fi && \
+			cd ansible && \
+			echo "--> 6a. Ping de vérification..." && \
+			ansible prof_host -m ping -i inventory.ini || { echo "[!] Échec du ping"; exit 1; } && \
+			echo "--> 6b. Vérification de la syntaxe du playbook..." && \
+			ansible-playbook centralized.yml -i inventory.ini --syntax-check || { echo "[!] Erreur de syntaxe"; exit 1; } && \
+			echo "--> 6c. Application réelle du playbook centralized..." && \
+			ansible-playbook centralized.yml -i inventory.ini; \
+		else \
+			echo "[!] Erreur : Aucun venv trouvé dans ./venv ou ../venv."; exit 1; \
+		fi
+
+deploy-ansible-prof: ## Applique uniquement le playbook Ansible sur la VM déjà lancée
 	@if [ -f venv/bin/activate ]; then \
-		. venv/bin/activate && \
-		if ! command -v ansible >/dev/null 2>&1; then \
-			echo "[!] Erreur : Ansible n'est pas installé dans le venv"; exit 1; \
-		fi && \
-		cd ansible && ansible prof_host -m ping -i inventory.ini; \
+		. venv/bin/activate && cd ansible && ansible-playbook centralized.yml -i inventory.ini; \
 	elif [ -f ../venv/bin/activate ]; then \
-		. ../venv/bin/activate && \
-		if ! command -v ansible >/dev/null 2>&1; then \
-			echo "[!] Erreur : Ansible n'est pas installé dans le venv"; exit 1; \
-		fi && \
-		cd ansible && ansible prof_host -m ping -i inventory.ini; \
+		. ../venv/bin/activate && cd ansible && ansible-playbook centralized.yml -i inventory.ini; \
 	else \
-		echo "[!] Erreur : Aucun venv trouvé dans ./venv ou ../venv."; exit 1; \
+		echo "[!] Erreur : Aucun venv trouvé."; exit 1; \
 	fi
