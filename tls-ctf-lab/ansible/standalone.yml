@@ -1,12 +1,11 @@
 ---
-# Mode All-In-One — Reproduction locale autonome du TP.
-# Déploie le portail, toutes les cibles vulnérables et le client-victime
-# sur une seule machine/VM (ex: la VM 'prof_host').
+# Mode All-In-One — Reproduction locale autonome du TP sur la VM.
+# Déploie le portail, les cibles, la victime et l'attaquant sur vm_prof.
 #
-#   ansible-playbook all_in_one.yml -i inventory.ini
+#   ansible-playbook standalone.yml -i inventory.ini
 
-- name: Déploiement All-In-One (Portail + Cibles + Victime sur une seule VM)
-  hosts: prof_vm
+- name: Déploiement Standalone sur VM Prof
+  hosts: vm_prof
   become: true
   roles:
     - common
