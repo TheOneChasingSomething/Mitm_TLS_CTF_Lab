@@ -14,7 +14,7 @@ source "qemu" "lab" {
   iso_url          = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
   iso_checksum     = "file:https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS"
   disk_image       = true
-  output_directory = "output-lab-vm"
+  output_directory = "../output
   format           = "qcow2"
   disk_size        = "12G"
   memory           = 2048
