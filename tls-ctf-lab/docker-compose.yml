@@ -146,3 +146,12 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/16
+
+attacker:
+    build: ./attacker
+    volumes:
+      - labdata:/data
+    networks:
+      lab: { ipv4_address: 172.28.0.12 }
+    cap_add: [NET_RAW, NET_ADMIN]     # Requis pour Scapy, tcpdump, arpspoof
+    tty: true                         # Permet d'ouvrir un terminal interactif

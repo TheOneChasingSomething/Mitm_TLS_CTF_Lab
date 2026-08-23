@@ -1,5 +1,5 @@
 # Raccourcis d'exploitation du laboratoire.
-.PHONY: build up down logs clean packer-portal packer-vm rotate-flags classroom classroom-check centralized-instances debug debug-down generate-keys deploy-ansible-prof-centralized deploy-ansible-prof-standalone setup-vm-packer-prof-centralized setup-vm-packer-prof-standalone
+.PHONY: build up down logs clean packer-portal packer-vm rotate-flags classroom classroom-check centralized-instances debug debug-down generate-keys deploy-ansible-prof-centralized deploy-ansible-prof-standalone setup-vm-packer-prof-centralized setup-vm-packer-prof-standalone standalone-up attacker-shell ssh-student
 
 SSH_KEY_FILE := $(HOME)/.ssh/id_ed25519
 STUDENTS_FILE := students.txt
@@ -26,6 +26,22 @@ logs:             ## Suit les journaux
 
 clean:            ## Arrête et purge volumes/images
 	docker compose down -v --rmi local
+
+# --- Commandes directes d'utilisation des environnements d'attaque ---
+
+standalone-up: up ## Démarre le lab localement et ouvre un terminal dans le conteneur attacker
+	@echo "--> Connexion au conteneur attacker..."
+	docker compose exec -it attacker bash
+
+attacker-shell:   ## Ouvre un terminal dans le conteneur attacker local existant
+	docker compose exec -it attacker bash
+
+ssh-student:      ## Teste la connexion SSH étudiant vers la VM centralisée (étudiant par défaut: etu01)
+	@STUDENT=$${ETU:-etu01}; \
+	echo "--> Connexion SSH en tant que tp-$$STUDENT sur localhost:2222..."; \
+	ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i keys/$$STUDENT -p 2222 tp-$$STUDENT@127.0.0.1
+
+# --- Packer & Ansible ---
 
 packer-portal:    ## Construit l'image portail via Packer→Docker
 	cd packer && packer init . && packer build -only='docker.*' .
@@ -109,18 +125,22 @@ setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déplo
 	export SSH_PUB_KEY="$$(cat $(SSH_KEY_FILE).pub)" && \
 	packer init . && \
 	packer build -force -var-file=variables.pkrvars.hcl -only='qemu.*' .
-	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22)"
+	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22, 5000 -> 5000)"
 	qemu-system-x86_64 -enable-kvm -hda $(OUT_DIR_CENTRAL)/$(VM_NAME_CENTRAL) -k fr -m 2G -cpu host \
-		-netdev user,id=net0,hostfwd=tcp::2222-:22 \
+		-netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::5000-:5000 \
 		-device virtio-net-pci,netdev=net0 \
 		-display gtk -daemonize
-	@echo "==> 5. Attente du démarrage du port SSH sur localhost:2222..."
-	@until nc -z -w 2 127.0.0.1 2222 2>/dev/null; do sleep 2; done
-	@echo "==> Temporisation pour la stabilisation d'OpenSSH..."
-	@sleep 5
-	@ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
+	@echo "==> 5. Attente de la disponibilité complète d'OpenSSH sur 127.0.0.1:2222..."
+		@ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
+		@until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i $(SSH_KEY_FILE) -p 2222 -q ansible@127.0.0.1 "echo ok" >/dev/null 2>&1; do \
+			echo "   [i] Attente de l'initialisation de la VM..."; \
+			sleep 3; \
+		done
+		@echo "==> [✓] Service SSH de la VM opérationnel."
 	@echo "==> 6. Validation d'Ansible et déploiement du rôle centralized"
 	@$(MAKE) deploy-ansible-prof-centralized
+	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[localhost]:2222" >/dev/null 2>&1 || true
+	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true	
 
 setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode autonome
 	@echo "==> 1. Nettoyage d'une ancienne VM QEMU et suppression des anciens artefacts"
@@ -135,15 +155,19 @@ setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode auto
 	export SSH_PUB_KEY="$$(cat $(SSH_KEY_FILE).pub)" && \
 	packer init . && \
 	packer build -force -var-file=variables.pkrvars.hcl -only='qemu.*' .
-	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22)"
+	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22, 5000 -> 5000)"
 	qemu-system-x86_64 -enable-kvm -hda $(OUT_DIR_STANDALONE)/$(VM_NAME_STANDALONE) -k fr -m 2G -cpu host \
 		-netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::5000-:5000 \
 		-device virtio-net-pci,netdev=net0 \
 		-display gtk -daemonize
-	@echo "==> 5. Attente du démarrage du port SSH sur localhost:2222..."
-	@until nc -z -w 2 127.0.0.1 2222 2>/dev/null; do sleep 2; done
-	@echo "==> Temporisation pour la stabilisation d'OpenSSH..."
-	@sleep 5
-	@ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
+	@echo "==> 5. Attente de la disponibilité complète d'OpenSSH sur 127.0.0.1:2222..."
+		@ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
+		@until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i $(SSH_KEY_FILE) -p 2222 -q ansible@127.0.0.1 "echo ok" >/dev/null 2>&1; do \
+			echo "   [i] Attente de l'initialisation de la VM..."; \
+			sleep 3; \
+		done
+		@echo "==> [✓] Service SSH de la VM opérationnel."
 	@echo "==> 6. Validation d'Ansible et déploiement du playbook standalone"
 	@$(MAKE) deploy-ansible-prof-standalone
+	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[localhost]:2222" >/dev/null 2>&1 || true
+	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
