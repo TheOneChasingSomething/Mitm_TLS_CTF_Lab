@@ -9,8 +9,8 @@ FROM debian:12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-pip python3-scapy \
       tcpdump tshark nmap dsniff \
-      openssl curl ca-certificates iproute2 iputils-ping \
-      less nano vim-tiny \
+      openssl curl ca-certificates iproute2 iputils-ping procps\
+      less nano vim-tiny neovim proxychains\
  && rm -rf /var/lib/apt/lists/*
 
 # Un utilisateur non-privilégié à l'intérieur du conteneur (le NET_RAW nécessaire

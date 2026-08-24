@@ -81,8 +81,31 @@ generate-keys:    ## Génère les clés SSH pour la liste d'étudiants définie 
 			echo "[+] Clé générée pour $$etu"; \
 		fi; \
 	done < $(STUDENTS_FILE)
+define start_qemu_vm
+	@img_path="$(1)/$(2)"; \
+	if [ -f "$$img_path" ]; then \
+		if pgrep -f "qemu-system-x86_64.*$$img_path" >/dev/null 2>&1; then \
+			echo "--> VM QEMU ($$img_path) déjà en cours d'exécution."; \
+		else \
+			echo "--> Démarrage de la VM QEMU ($$img_path)..."; \
+			qemu-system-x86_64 -enable-kvm -hda "$$img_path" -k fr -m 2G -cpu host \
+				-netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::5000-:5000 \
+				-device virtio-net-pci,netdev=net0 \
+				-display gtk -daemonize; \
+			echo "--> Attente du port SSH (127.0.0.1:2222)..."; \
+			ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true; \
+			until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i $(SSH_KEY_FILE) -p 2222 -q ansible@127.0.0.1 "echo ok" >/dev/null 2>&1; do \
+				sleep 2; \
+			done; \
+			echo "--> [✓] VM démarrée et SSH prêt."; \
+		fi; \
+	else \
+		echo "--> Avertissement : Image $$img_path introuvable. Lancez d'abord la cible setup-vm-packer-* correspondante."; \
+	fi
+endef
 
 deploy-ansible-prof-centralized: generate-keys ## Déploie Ansible (mode centralisé multi-étudiants)
+	$(call start_qemu_vm,$(OUT_DIR_CENTRAL),$(VM_NAME_CENTRAL))
 	@STUDENT_JSON=$$(python3 -c 'import json, glob; print(json.dumps({"student_instances": [{"login": f.split("/")[-1].replace(".pub",""), "ssh_pubkey": open(f).read().strip()} for f in glob.glob("keys/*.pub")]}))') && \
 	if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
 	cd ansible && \
@@ -103,6 +126,7 @@ deploy-ansible-prof-centralized: generate-keys ## Déploie Ansible (mode central
 	done < ../$(STUDENTS_FILE)
 
 deploy-ansible-prof-standalone: ## Déploie Ansible (mode autonome all-in-one)
+	$(call start_qemu_vm,$(OUT_DIR_STANDALONE),$(VM_NAME_STANDALONE))
 	@if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
 	cd ansible && \
 	echo "--> 6a. Validation accès prof..." && \
@@ -112,6 +136,7 @@ deploy-ansible-prof-standalone: ## Déploie Ansible (mode autonome all-in-one)
 	echo "--> 6c. Déploiement du playbook standalone..." && \
 	ansible-playbook standalone.yml -i inventory.ini
 
+	
 setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déploie le mode centralisé
 	@echo "==> 1. Nettoyage d'une ancienne VM QEMU et suppression des anciens artefacts"
 	-@pkill -f "qemu-system-x86_64.*$(OUT_DIR_CENTRAL)" || true

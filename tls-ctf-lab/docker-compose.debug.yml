@@ -27,7 +27,7 @@ services:
       - "8081:8081"            # interface d'inspection (enseignant)
     networks:
       lab:
-        ipv4_address: 172.28.0.12
+        ipv4_address: 172.28.0.13
     restart: unless-stopped
 
   # La victime envoie désormais tout son trafic via le proxy d'observation.

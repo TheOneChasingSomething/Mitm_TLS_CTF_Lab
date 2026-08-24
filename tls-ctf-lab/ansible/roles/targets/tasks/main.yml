@@ -2,13 +2,13 @@
 # Déploie les CIBLES vulnérables + le client-victime (mode standalone) sur chaque
 # poste étudiant. Les cibles proxifient vers le portail central via extra_hosts.
 
-- name: Synchroniser les contextes de build (cibles + victime)
+- name: Synchroniser les contextes de build (cibles + victime + attacker)
   ansible.posix.synchronize:
     src: "{{ playbook_dir }}/../{{ item }}"
     dest: "{{ lab_project_dir }}/"
     delete: true
     rsync_opts: ["--exclude=__pycache__"]
-  loop: [targets, victim-client, scripts]
+  loop: [targets, victim-client, scripts, attacker]   # <-- Ajout de 'attacker' ici
   when: image_source == "build"
 
 - name: Charger les images pré-cuites (mode load)
@@ -30,7 +30,7 @@
 
 - name: Démarrer les cibles + la victime
   ansible.builtin.command:
-    cmd: docker compose up -d
+    cmd: docker compose up -d --build
     chdir: "{{ lab_project_dir }}"
 
 - name: Rappel

@@ -38,6 +38,21 @@ services:
     restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.11 } }
 
+  attacker:
+{% if image_source == 'build' %}
+    build: ./attacker
+{% else %}
+    image: tls-lab-attacker
+{% endif %}
+    volumes:
+      - ./captures:/captures
+    networks:
+      lab: { ipv4_address: 172.28.0.12 }
+    cap_add: [NET_RAW, NET_ADMIN]
+    sysctls:
+      - net.ipv4.ip_forward=1
+    tty: true
+
 {% for s in svc %}
   {{ s.name }}:
 {% if image_source == 'build' %}
