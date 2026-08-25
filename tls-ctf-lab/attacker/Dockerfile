@@ -8,7 +8,7 @@ FROM debian:12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-pip python3-scapy \
-      tcpdump tshark nmap dsniff \
+      tcpdump tshark nmap dsniff net-tools\
       openssl curl ca-certificates iproute2 iputils-ping procps xclip\
       less nano vim-tiny neovim proxychains\
  && rm -rf /var/lib/apt/lists/*
