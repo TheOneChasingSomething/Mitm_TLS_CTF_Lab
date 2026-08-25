@@ -20,6 +20,7 @@ services:
       FLAG_C11: "${FLAG_C11:-FLAG{heartbeat_payload_length_unchecked}}"
     volumes:
       - labdata:/data
+    restart: unless-stopped
     networks:
       lab: { ipv4_address: 172.28.0.10 }
     ports:
@@ -27,16 +28,27 @@ services:
 
   victim-client:
     build: ./victim-client
+    environment:
+      VICTIM_MODE: "queue"
+      VICTIM_STANDALONE_TARGETS: >-
+        [{"challenge":"3","slug":"mitm-http","dest_ip":"c3-mitm-http","port":8453,"mode":"cleartext"},
+         {"challenge":"4","slug":"self-signed-mitm","dest_ip":"c4-self-signed","port":8441,"mode":"tls"},
+         {"challenge":"6","slug":"pfs-rsa-kx","dest_ip":"c6-pfs-rsa","port":8447,"mode":"tls"},
+         {"challenge":"7","slug":"logjam","dest_ip":"c7-logjam","port":8448,"mode":"tls"},
+         {"challenge":"8","slug":"ssl-strip","dest_ip":"c8-ssl-strip","port":8443,"mode":"tls"},
+         {"challenge":"9","slug":"poodle-sslv3","dest_ip":"c9-poodle","port":8444,"mode":"tls"},
+         {"challenge":"10","slug":"beast-tls10","dest_ip":"c10-beast","port":8446,"mode":"tls"},
+         {"challenge":"11","slug":"heartbleed","dest_ip":"c11-heartbleed","port":8445,"mode":"memory"}]
     depends_on: [portal]
     volumes:
       - labdata:/data
+    restart: unless-stopped
     networks:
       lab: { ipv4_address: 172.28.0.11 }
 
   attacker:
     build: ./attacker
     volumes:
-      - labdata:/data
       - ./captures:/captures
     networks:
       lab: { ipv4_address: 172.28.0.12 }
@@ -50,6 +62,7 @@ services:
     build: ./targets/recon
     environment:
       FLAG_C0: "${FLAG_C0:-FLAG{map_the_terrain_before_the_assault}}"
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.20 } }
 
   c1-openssl-warmup:
@@ -59,6 +72,7 @@ services:
         FLAG_C1: "${FLAG_C1:-FLAG{asn1_walk_then_verify_the_signature}}"
     depends_on: [portal]
     ports: ["8451:8451"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.21 } }
 
   c2-scapy-warmup:
@@ -66,6 +80,7 @@ services:
     environment:
       FLAG_C2: "${FLAG_C2:-FLAG{sniff_dissect_craft_send}}"
     cap_add: [NET_RAW, NET_ADMIN]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.22 } }
 
   # ─────────────────────────── Interception réseau ─────────────────────── #
@@ -73,6 +88,7 @@ services:
     build: ./targets/mitm-http
     depends_on: [portal]
     ports: ["8453:8453"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.23 } }
 
   # ───────────────────────── Attaques TLS proprement ───────────────────── #
@@ -80,6 +96,7 @@ services:
     build: ./targets/self-signed
     depends_on: [portal]
     ports: ["8441:8441"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.24 } }
 
   c5-key-leak:
@@ -87,13 +104,15 @@ services:
     depends_on: [portal]
     ports: ["8442:8442"]
     volumes:
-      - labdata:/leak:ro
+      - ./targets/key-leak/nginx.classroom.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.25 } }
 
   c6-pfs-rsa:
     build: ./targets/pfs-rsa
     depends_on: [portal]
     ports: ["8447:8447"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.26 } }
 
   c7-logjam:
@@ -102,12 +121,14 @@ services:
       FLAG_C7: "${FLAG_C7:-FLAG{export_dh_512_is_precomputable}}"
     depends_on: [portal]
     ports: ["8448:8448"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.27 } }
 
   c8-ssl-strip:
     build: ./targets/ssl-strip
     depends_on: [portal]
     ports: ["8006:80", "8443:8443"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.28 } }
 
   c9-poodle:
@@ -116,6 +137,7 @@ services:
       FLAG_C9: "${FLAG_C9:-FLAG{sslv3_cbc_padding_is_an_oracle}}"
     depends_on: [portal]
     ports: ["8444:8444"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.29 } }
 
   c10-beast:
@@ -124,6 +146,7 @@ services:
       FLAG_C10: "${FLAG_C10:-FLAG{predictable_iv_enables_chosen_plaintext}}"
     depends_on: [portal]
     ports: ["8446:8446"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.30 } }
 
   c11-heartbleed:
@@ -132,6 +155,7 @@ services:
       FLAG_C11: "${FLAG_C11:-FLAG{heartbeat_payload_length_unchecked}}"
     depends_on: [portal]
     ports: ["8445:8445"]
+    restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.31 } }
 
 volumes:

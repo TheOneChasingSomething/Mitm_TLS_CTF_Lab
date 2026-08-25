@@ -4,6 +4,10 @@
 lab_domain: "bank.tp.lan"
 lab_subnet: "172.28.0.0/16"
 portal_port: 5000
+# IP réelle du portail vue par les conteneurs Docker :
+# - En VM / Standalone (is_virtual = true) → 172.28.0.10 (réseau Docker interne)
+# - En salle de TP physique (is_virtual = false) → IP physique du poste prof
+portal_target_ip: "{{ hostvars[groups['teacher'][0]]['ansible_host'] if (hostvars[groups['teacher'][0]]['is_virtual'] is defined and not hostvars[groups['teacher'][0]]['is_virtual']) else '172.28.0.10' }}"
 
 # Répertoire où les contextes de build sont synchronisés sur chaque hôte.
 lab_project_dir: "/opt/tls-lab"

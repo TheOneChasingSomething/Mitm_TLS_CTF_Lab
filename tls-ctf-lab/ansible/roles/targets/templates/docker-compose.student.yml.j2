@@ -24,7 +24,7 @@ services:
     image: tls-lab-victim
 {% endif %}
     environment:
-      VICTIM_MODE: "standalone"
+      VICTIM_MODE: "queue"
       # Cibles LOCALES rejouées en boucle (dest_ip = nom de service docker).
       VICTIM_STANDALONE_TARGETS: >-
         [{"challenge":"3","slug":"mitm-http","dest_ip":"c3-mitm-http","port":8453,"mode":"cleartext"},
@@ -35,6 +35,8 @@ services:
          {"challenge":"9","slug":"poodle-sslv3","dest_ip":"c9-poodle","port":8444,"mode":"tls"},
          {"challenge":"10","slug":"beast-tls10","dest_ip":"c10-beast","port":8446,"mode":"tls"},
          {"challenge":"11","slug":"heartbleed","dest_ip":"c11-heartbleed","port":8445,"mode":"memory"}]
+    volumes:
+      - labdata:/data
     restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.11 } }
 
@@ -82,7 +84,7 @@ services:
     cap_add: [NET_RAW, NET_ADMIN]
 {% endif %}
 {% if s.host %}
-    extra_hosts: ["portal:{{ teacher_ip }}"]   # 'portal' → machine prof
+    extra_hosts: ["portal:{{ portal_target_ip }}"]   # 'portal' → machine prof
 {% endif %}
 {% if s.conf is defined %}
     volumes:
@@ -98,3 +100,5 @@ networks:
     ipam:
       config:
         - subnet: "{{ lab_subnet }}"
+volumes:
+  labdata: {}

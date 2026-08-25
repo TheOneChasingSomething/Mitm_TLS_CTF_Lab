@@ -226,7 +226,6 @@ Here is the step-by-step procedure to resolve an on-path challenge (e.g., C3 or 
 3. **Setup MITM:** Inside the container, enable routing and start poisoning:
 	Bash
 	```
-	sysctl -w net.ipv4.ip_forward=1
 	arpspoof -i eth0 -t 172.28.0.11 <target-ip> &
 	arpspoof -i eth0 -t <target-ip> 172.28.0.11 &
 	```
@@ -264,5 +263,5 @@ The directory `/opt/tls-lab/captures` on the VM is mapped to `/captures` inside 
 ## 8. Troubleshooting (Standalone)
 
 * **`docker compose exec` fails:** Vérifie que les conteneurs tournent via `docker compose ps` depuis `/opt/tls-lab`.
-* **No traffic captured:** Check `sysctl net.ipv4.ip_forward` inside container (must be `1`), ensure `arpspoof` uses `eth0`.
+* **No traffic captured:** Check `ipv4.ip_forward` inside container (must be `1`), ensure `arpspoof` uses `eth0`.
 * **`s_client` hangs:** Pipe `echo |` or add `</dev/null`.

@@ -33,7 +33,7 @@ services:
   victim-client:
     image: tls-lab-victim
     environment:
-      VICTIM_MODE: "standalone"
+      VICTIM_MODE: "queue"
       VICTIM_STANDALONE_TARGETS: >-
         [{"challenge":"3","slug":"mitm-http","dest_ip":"c3-mitm-http","port":8453,"mode":"cleartext"},
          {"challenge":"4","slug":"self-signed-mitm","dest_ip":"c4-self-signed","port":8441,"mode":"tls"},
