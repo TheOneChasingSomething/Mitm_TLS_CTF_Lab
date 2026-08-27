@@ -4,7 +4,7 @@ services:
   portal:
     build: ./app
     environment:
-      LAB_CIDR: "172.28.0.0/16"
+      LAB_CIDR: "172.28.0.0/24"
       LAB_DOMAIN: "bank.tp.lan"
       FLAG_C0: "${FLAG_C0:-FLAG{map_the_terrain_before_the_assault}}"
       FLAG_C1: "${FLAG_C1:-FLAG{asn1_walk_then_verify_the_signature}}"
@@ -44,7 +44,8 @@ services:
       - labdata:/data
     restart: unless-stopped
     networks:
-      lab: { ipv4_address: 172.28.0.11 }
+      lab: { ipv4_address: 172.28.0.11}
+    cap_add: [NET_RAW, NET_ADMIN]
 
   attacker:
     build: ./attacker
@@ -64,7 +65,7 @@ services:
       FLAG_C0: "${FLAG_C0:-FLAG{map_the_terrain_before_the_assault}}"
     restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.20 } }
-
+    cap_add: [NET_RAW, NET_ADMIN]
   c1-openssl-warmup:
     build:
       context: ./targets/openssl-warmup
@@ -74,7 +75,7 @@ services:
     ports: ["8451:8451"]
     restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.21 } }
-
+    cap_add: [NET_RAW, NET_ADMIN]
   c2-scapy-warmup:
     build: ./targets/scapy-warmup
     environment:
@@ -98,6 +99,7 @@ services:
     ports: ["8441:8441"]
     restart: unless-stopped
     networks: { lab: { ipv4_address: 172.28.0.24 } }
+    cap_add: [NET_RAW, NET_ADMIN]
 
   c5-key-leak:
     build: ./targets/key-leak
@@ -167,4 +169,4 @@ networks:
     internal: false
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 172.28.0.0/24

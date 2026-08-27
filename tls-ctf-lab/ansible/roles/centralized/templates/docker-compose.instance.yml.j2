@@ -44,6 +44,7 @@ services:
          {"challenge":"10","slug":"beast-tls10","dest_ip":"c10-beast","port":8446,"mode":"tls"},
          {"challenge":"11","slug":"heartbleed","dest_ip":"c11-heartbleed","port":8445,"mode":"memory"}]
     restart: unless-stopped
+    cap_add: [NET_RAW, NET_ADMIN]
     networks: { lab: { ipv4_address: "{{ net }}.11" } }
 
   # Point d'appui de l'étudiant : SEUL moyen d'attaquer (SSH ForceCommand).
@@ -59,7 +60,7 @@ services:
   {'name':'c1-openssl-warmup','img':'openssl-warmup','ip':21,'conf':none},
   {'name':'c2-scapy-warmup','img':'scapy-warmup','ip':22,'cap':true,'env':['FLAG_C2']},
   {'name':'c3-mitm-http','img':'mitm-http','ip':23},
-  {'name':'c4-self-signed','img':'self-signed','ip':24},
+  {'name':'c4-self-signed','img':'self-signed','cap':true,'ip':24},
   {'name':'c5-key-leak','img':'key-leak','ip':25,'conf':'key-leak'},
   {'name':'c6-pfs-rsa','img':'pfs-rsa','ip':26},
   {'name':'c7-logjam','img':'logjam','ip':27,'env':['FLAG_C7']},

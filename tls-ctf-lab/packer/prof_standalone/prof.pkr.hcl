@@ -76,7 +76,9 @@ build {
   provisioner "shell" {
     inline = [
       "sudo mkdir -p /home/ansible/tls-ctf-lab",
-      "sudo chown -R ansible:ansible /home/ansible/tls-ctf-lab"
+      "sudo chown -R ansible:ansible /home/ansible/tls-ctf-lab",
+      "sudo mkdir -p /opt/tls-lab/captures",
+      "sudo chown -R ansible:ansible /opt/tls-lab"      
     ]
   }
 }

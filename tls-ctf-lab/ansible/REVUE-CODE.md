@@ -116,7 +116,7 @@ personnalisé → comportement SSH par défaut.
 
 Trois blocs. **Bloc salle de TP (L4–21)** :
 
-- `lab_domain`, `lab_subnet` (172.28.0.0/16), `portal_port` (5000),
+- `lab_domain`, `lab_subnet` (172.28.0.0/24), `portal_port` (5000),
   `lab_project_dir` (/opt/tls-lab) : paramètres partagés.
 - **L12** `teacher_ip` est *dérivé* de l'inventaire :
   `hostvars[groups['teacher'][0]]['ansible_host'] | default(groups['teacher'][0])`.

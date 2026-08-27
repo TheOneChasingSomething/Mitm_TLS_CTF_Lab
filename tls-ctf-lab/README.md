@@ -59,7 +59,7 @@ HTTP). This separation isolates the variable under study and avoids conflating a
 web flaw (out of scope) with a TLS flaw (the subject of the lab).
 
 ```
-          Isolated lab network (172.28.0.0/16)
+          Isolated lab network (172.28.0.0/24)
   ┌───────────────┐        MITM        ┌────────────────────────────┐
   │ victim-client │◄────attacker──────►│  target Cx: TLS front-end  │
   │  (careless)   │                    │  VULNERABLE  →  portal     │
@@ -619,7 +619,7 @@ son absence (MITM HTTP). Cette séparation isole la variable étudiée et évite
 confondre faille web (hors périmètre) et faille TLS (objet du TP).
 
 ```
-          Réseau de laboratoire isolé (172.28.0.0/16)
+          Réseau de laboratoire isolé (172.28.0.0/24)
   ┌───────────────┐        MITM        ┌────────────────────────────┐
   │ client-victime│◄─────attaquant────►│  cible Cx : front-end TLS  │
   │  (imprudent)  │                    │  VULNÉRABLE  →  portail     │

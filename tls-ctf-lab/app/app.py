@@ -44,7 +44,7 @@ from crypto_utils import encrypt_flag, ensure_keypair
 app = Flask(__name__)
 
 # Réseau autorisé pour les IP de destination (défaut : plage privée du lab).
-LAB_CIDR = os.environ.get("LAB_CIDR", "172.28.0.0/16")
+LAB_CIDR = os.environ.get("LAB_CIDR", "172.28.0.0/24")
 VICTIM_QUEUE = os.environ.get("VICTIM_QUEUE", "/data/victim_jobs.jsonl")
 CHALLENGE_ID = os.environ.get("CHALLENGE_ID")  # None sur le portail global
 
@@ -151,7 +151,7 @@ def flag_feed(cid):
     if mode == "recon":
         # Challenge 0 (reconnaissance) : le flag n'est PAS distribué ici. Il est
         # porté par un service à découvrir au balayage nmap (titre HTTP). Les
-        # adresses sont dérivées de LAB_CIDR → correctes en local (172.28.0.0/16)
+        # adresses sont dérivées de LAB_CIDR → correctes en local (172.28.0.0/24)
         # comme en instance isolée (172.29.<i>.0/24).
         import ipaddress
         _net = ipaddress.ip_network(LAB_CIDR, strict=False)

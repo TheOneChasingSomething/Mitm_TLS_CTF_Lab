@@ -6,8 +6,8 @@
   {'name':'c0-recon','ctx':'recon','ip':20,'ports':[],'env':{'FLAG_C0':flags.FLAG_C0},'host':false},
   {'name':'c1-openssl-warmup','ctx':'openssl-warmup','ip':21,'ports':['8451:8451'],'args':{'FLAG_C1':flags.FLAG_C1},'host':true},
   {'name':'c2-scapy-warmup','ctx':'scapy-warmup','ip':22,'ports':[],'env':{'FLAG_C2':flags.FLAG_C2},'cap':true,'host':false},
-  {'name':'c3-mitm-http','ctx':'mitm-http','ip':23,'ports':['8453:8453'],'host':true},
-  {'name':'c4-self-signed','ctx':'self-signed','ip':24,'ports':['8441:8441'],'host':true},
+  {'name':'c3-mitm-http','ctx':'mitm-http','ip':23,'ports':['8453:8453'],'host':true, 'cap':true},
+  {'name':'c4-self-signed','ctx':'self-signed','ip':24,'ports':['8441:8441'],'host':true, 'cap':true},
   {'name':'c5-key-leak','ctx':'key-leak','ip':25,'ports':['8442:8442'],'host':true,'conf':'targets/key-leak/nginx.classroom.conf'},
   {'name':'c6-pfs-rsa','ctx':'pfs-rsa','ip':26,'ports':['8447:8447'],'host':true},
   {'name':'c7-logjam','ctx':'logjam','ip':27,'ports':['8448:8448'],'env':{'FLAG_C7':flags.FLAG_C7},'host':true},
@@ -38,6 +38,7 @@ services:
     volumes:
       - labdata:/data
     restart: unless-stopped
+    cap_add: [NET_RAW, NET_ADMIN]
     networks: { lab: { ipv4_address: 172.28.0.11 } }
 
   attacker:

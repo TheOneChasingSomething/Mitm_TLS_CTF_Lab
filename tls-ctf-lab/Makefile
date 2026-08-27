@@ -179,7 +179,7 @@ setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode auto
 	cd packer/prof_standalone && \
 	export SSH_PUB_KEY="$$(cat $(SSH_KEY_FILE).pub)" && \
 	packer init . && \
-	packer build -force -var-file=variables.pkrvars.hcl -only='qemu.*' .
+	PACKER_LOG=1 packer build -force -var-file=variables.pkrvars.hcl -only='qemu.*' .
 	@echo "==> 4. Démarrage de la VM QEMU en mode NAT (Port forwarding 2222 -> 22, 5000 -> 5000)"
 	qemu-system-x86_64 -enable-kvm -hda $(OUT_DIR_STANDALONE)/$(VM_NAME_STANDALONE) -k fr -m 2G -cpu host \
 		-netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::5000-:5000 \

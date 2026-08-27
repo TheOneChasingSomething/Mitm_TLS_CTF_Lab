@@ -278,3 +278,10 @@ The directory `/opt/tls-lab/captures` on the VM is mapped to `/captures` inside 
 * **`docker compose exec` fails:** Vérifie que les conteneurs tournent via `docker compose ps` depuis `/opt/tls-lab`.
 * **No traffic captured:** Check `ipv4.ip_forward` inside container (must be `1`), ensure `arpspoof` uses `eth0`.
 * **`s_client` hangs:** Pipe `echo |` or add `</dev/null`.
+
+```
+docker exec -u 0  tls-lab-victim-client-1 tcpdump -i eth0 -s0 -X
+docker run --rm -it --net=container:tls-lab-victim-client-1 nicolaka/netshoot tcpdump -i eth0 -n
+docker exec -u 0 -it tls-lab-victim-client-1 ip neigh flush alansible@ubuntu:/opt/tls-lab$ 
+sudo ip neigh replace <IP> lladdr <MAC> dev eth0 nud permanent
+```

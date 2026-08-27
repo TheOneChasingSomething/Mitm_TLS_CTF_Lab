@@ -8,7 +8,7 @@
 
 ## 1. The lab in one picture
 
-Every machine lives on one Docker network, `172.28.0.0/16`. You attack from a
+Every machine lives on one Docker network, `172.28.0.0/24`. You attack from a
 host that is on that network.
 
 | Role | Address | Notes |
@@ -81,7 +81,7 @@ sudo sysctl -w net.ipv4.ip_forward=1
 `br-XXXXXX`; inside the attacker container it is `eth0`.
 
 ```sh
-ip -brief address        # list interfaces and their IPs; pick the 172.28.0.0/16 one
+ip -brief address        # list interfaces and their IPs; pick the 172.28.0.0/24 one
 ```
 
 **Step 3 — poison the ARP caches** of victim and target so both send their
@@ -290,7 +290,7 @@ the `FLAG{...}` you recovered. The portal checks it and credits the points.
 
 - **Nothing is captured after arming.** You are probably not on-path: check that
   both `arpspoof` directions are running, that `ip_forward` is `1`, and that you
-  captured on the **lab** interface (`172.28.0.0/16`).
+  captured on the **lab** interface (`172.28.0.0/24`).
 - **`s_client` hangs.** Add `</dev/null` (or `echo |`) so it closes the input.
 - **Connection refused / wrong data.** Re-check the IP *and* port from the table
   in Section 1; each challenge has its own port.

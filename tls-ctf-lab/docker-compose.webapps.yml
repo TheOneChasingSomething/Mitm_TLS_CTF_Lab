@@ -1,5 +1,5 @@
 # Orchestration du laboratoire « Sécurité HTTPS » (11 challenges).
-# Réseau interne isolé (172.28.0.0/16 = LAB_CIDR) : aucune cible n'est publiée
+# Réseau interne isolé (172.28.0.0/24 = LAB_CIDR) : aucune cible n'est publiée
 # au-delà des ports de TP, et le portail refuse toute IP de destination hors de
 # cette plage (cf. app/app.py).
 #
@@ -17,7 +17,7 @@ services:
   portal:
     build: ./app
     environment:
-      LAB_CIDR: "172.28.0.0/16"
+      LAB_CIDR: "172.28.0.0/24"
       LAB_DOMAIN: "bank.tp.lan"
       # Les flags sont partagés portail↔cibles pour cohérence des empreintes.
       FLAG_C0: "${FLAG_C0:-FLAG{map_the_terrain_before_the_assault}}"
@@ -160,4 +160,4 @@ networks:
     internal: false            # passer à true pour couper tout accès sortant
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 172.28.0.0/24
