@@ -29,6 +29,7 @@ d'une manière volontairement imprudente :
 import json
 import os
 import ssl
+import subprocess
 import time
 import urllib.request
 
@@ -72,6 +73,39 @@ def _insecure_ctx(challenge: str | int = "") -> ssl.SSLContext:
 _NO_VICTIM = {"recon", "openssl-warmup", "scapy-warmup"}
 # Challenges dont le trafic victime circule en HTTP clair (interceptable tel quel).
 _PLAINTEXT = {"ssl-strip", "mitm-http"}
+# Challenges nécessitant une pile TLS HÉRITÉE que l'OpenSSL 3.x de Python ne
+# fournit plus : SSLv3 (retiré) pour POODLE, TLS 1.0 (désactivé) pour BEAST. On
+# rejoue alors via le binaire OpenSSL 1.0.1f embarqué (cf. Dockerfile victime).
+_LEGACY = {"poodle-sslv3": "-ssl3", "beast-tls10": "-tls1"}
+_LEGACY_OPENSSL = "/opt/openssl-vuln/bin/openssl"
+
+
+def _legacy_replay(job: dict) -> None:
+    """Rejeu SSLv3/TLS1.0 via le binaire OpenSSL 1.0.1f (POODLE C9 / BEAST C10).
+
+    Génère la vraie session héritée CBC — porteuse du Set-Cookie du serveur — en
+    boucle, matière première de l'oracle de padding (POODLE) / du chosen-plaintext
+    (BEAST). Le binaire moderne de Python ne peut pas produire ce trafic.
+    """
+    ip, port, slug = job["dest_ip"], job["port"], job["slug"]
+    proto = _LEGACY[slug]
+    request = (f"GET /c/{job['challenge']}/flag-feed HTTP/1.0\r\n"
+               f"Host: bank.tp.lan\r\n\r\n").encode()
+    env = dict(os.environ, LD_LIBRARY_PATH="/opt/openssl-vuln/lib")
+    reps = 30
+    print(f"[victim] job {job['token']} ({slug}, legacy {proto}) → "
+          f"{ip}:{port} ×{reps}", flush=True)
+    for _ in range(reps):
+        try:
+            subprocess.run(
+                [_LEGACY_OPENSSL, "s_client", "-connect", f"{ip}:{port}", proto,
+                 "-cipher", "AES128-SHA:AES256-SHA:DES-CBC3-SHA"],
+                input=request, env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6,
+            )
+        except Exception as exc:  # lab : on ignore les erreurs réseau
+            print(f"[victim] {exc}", flush=True)
+        time.sleep(1)
 
 
 def _replay(job: dict) -> None:
@@ -80,6 +114,9 @@ def _replay(job: dict) -> None:
         print(f"[victim] job {job['token']} ({slug}) — pas de trafic victime "  #[cite: 7]
               f"(interaction directe avec la cible).", flush=True)  #[cite: 7]
         return  #[cite: 7]
+    if slug in _LEGACY:  # POODLE / BEAST : rejeu via OpenSSL 1.0.1f hérité
+        _legacy_replay(job)
+        return
     scheme = "http" if slug in _PLAINTEXT else "https"  #[cite: 7]
     url = f"{scheme}://{ip}:{port}/c/{job['challenge']}/flag-feed"  #[cite: 7]
     
