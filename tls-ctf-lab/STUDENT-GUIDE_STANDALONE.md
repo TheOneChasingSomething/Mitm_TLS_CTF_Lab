@@ -281,7 +281,12 @@ The directory `/opt/tls-lab/captures` on the VM is mapped to `/captures` inside 
 
 ```
 docker exec -u 0  tls-lab-victim-client-1 tcpdump -i eth0 -s0 -X
+
 docker run --rm -it --net=container:tls-lab-victim-client-1 nicolaka/netshoot tcpdump -i eth0 -n
-docker exec -u 0 -it tls-lab-victim-client-1 ip neigh flush alansible@ubuntu:/opt/tls-lab$ 
+
+docker exec -u 0 -it tls-lab-victim-client-1 ip neigh flush all
+
 sudo ip neigh replace <IP> lladdr <MAC> dev eth0 nud permanent
+
+docker logs -f victim
 ```

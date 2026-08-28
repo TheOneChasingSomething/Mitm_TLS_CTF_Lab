@@ -46,11 +46,24 @@ STANDALONE_TARGETS = os.environ.get("VICTIM_STANDALONE_TARGETS", "[]")
 _seen = set()
 
 
-def _insecure_ctx() -> ssl.SSLContext:
+def _insecure_ctx(challenge: str | int = "") -> ssl.SSLContext:
     """Contexte TLS victime : accepte n'importe quel certificat (faille C1)."""
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
+    
+    if str(challenge) == "6":
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+        ctx.set_ciphers('AES128-SHA:@SECLEVEL=1')
+
+        print("[victim] TLS VERSION:", ctx.minimum_version, ctx.maximum_version)
+
+        print(
+            "[victim] ENABLED CIPHERS:",
+            ":".join(c["name"] for c in ctx.get_ciphers()),
+            flush=True
+        ) 
     return ctx
 
 
@@ -62,23 +75,26 @@ _PLAINTEXT = {"ssl-strip", "mitm-http"}
 
 
 def _replay(job: dict) -> None:
-    ip, port, mode, slug = job["dest_ip"], job["port"], job["mode"], job["slug"]
-    if slug in _NO_VICTIM:
-        print(f"[victim] job {job['token']} ({slug}) — pas de trafic victime "
-              f"(interaction directe avec la cible).", flush=True)
-        return
-    scheme = "http" if slug in _PLAINTEXT else "https"
-    url = f"{scheme}://{ip}:{port}/c/{job['challenge']}/flag-feed"
-    ctx = _insecure_ctx()
-    reps = 30 if mode in ("tls", "cleartext") else 10
-    print(f"[victim] job {job['token']} → {url} ×{reps}", flush=True)
-    for _ in range(reps):
-        try:
-            with urllib.request.urlopen(url, timeout=4, context=ctx) as r:
-                r.read()  # la victime « lit » le flag → trafic à intercepter
-        except Exception as exc:  # noqa: BLE001 — lab : on ignore les erreurs réseau
-            print(f"[victim] {exc}", flush=True)
-        time.sleep(1)
+    ip, port, mode, slug = job["dest_ip"], job["port"], job["mode"], job["slug"]  #[cite: 7]
+    if slug in _NO_VICTIM:  #[cite: 7]
+        print(f"[victim] job {job['token']} ({slug}) — pas de trafic victime "  #[cite: 7]
+              f"(interaction directe avec la cible).", flush=True)  #[cite: 7]
+        return  #[cite: 7]
+    scheme = "http" if slug in _PLAINTEXT else "https"  #[cite: 7]
+    url = f"{scheme}://{ip}:{port}/c/{job['challenge']}/flag-feed"  #[cite: 7]
+    
+    # Validation du contexte via le champ challenge (int ou str)
+    ctx = _insecure_ctx(job.get("challenge"))
+    
+    reps = 30 if mode in ("tls", "cleartext") else 10  #[cite: 7]
+    print(f"[victim] job {job['token']} → {url} ×{reps}", flush=True)  #[cite: 7]
+    for _ in range(reps):  #[cite: 7]
+        try:  #[cite: 7]
+            with urllib.request.urlopen(url, timeout=4, context=ctx) as r:  #[cite: 7]
+                r.read()  #[cite: 7]
+        except Exception as exc:  #[cite: 7]
+            print(f"[victim] {exc}", flush=True)  #[cite: 7]
+        time.sleep(1)  #[cite: 7]
 
 
 def _standalone_loop() -> None:

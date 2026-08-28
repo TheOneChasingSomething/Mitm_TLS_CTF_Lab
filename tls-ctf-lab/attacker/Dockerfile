@@ -9,7 +9,7 @@ FROM debian:12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-pip python3-scapy unzip \
       tcpdump tshark nmap dsniff net-tools iptables \
-      openssl curl ca-certificates iproute2 iputils-ping procps xclip \
+      openssl curl ca-certificates iproute2 iputils-ping procps xclip xxd\
       less nano vim-tiny neovim proxychains \
       libusb-1.0-0 wget \
  && curl -s https://api.github.com/repos/bettercap/bettercap/releases/latest \
