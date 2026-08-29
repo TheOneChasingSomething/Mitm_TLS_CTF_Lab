@@ -37,6 +37,7 @@ services:
          {"challenge":"11","slug":"heartbleed","dest_ip":"c11-heartbleed","port":8445,"mode":"memory"}]
     volumes:
       - labdata:/data
+      - ./captures:/captures
     restart: unless-stopped
     cap_add: [NET_RAW, NET_ADMIN]
     networks: { lab: { ipv4_address: 172.28.0.11 } }
@@ -55,7 +56,10 @@ services:
     sysctls:
       - net.ipv4.ip_forward=1
     tty: true
-
+    command: >
+          sh -c "chown -R ansible:ansible /captures &&
+                chmod -R 775 /captures &&
+                su - ansible -c 'sleep infinity'"
 {% for s in svc %}
   {{ s.name }}:
 {% if image_source == 'build' %}
