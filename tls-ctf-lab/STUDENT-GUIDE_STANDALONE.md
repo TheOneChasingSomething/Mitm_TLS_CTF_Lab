@@ -268,16 +268,6 @@ The directory `/opt/tls-lab/captures` on the VM is mapped to `/captures` inside 
 
 - **Host Machine ➔ Attacker Container:** Push a script or custom payload from your host to the VM:
 	```Bash
-	docker exec -it tls-lab-attacker-1 bash	 
-	```
-
-	```Bash
-	docker exec -it tls-lab-attacker-1 bash	 
-	chown -R ansible:ansible /opt/tls-lab/captures
-	chmod -R 775 /opt/tls-lab/captures
-	```
-
-	```Bash
 	scp -P 2222 ./exploit.py ansible@127.0.0.1:/opt/tls-lab/captures/
 	```
 
