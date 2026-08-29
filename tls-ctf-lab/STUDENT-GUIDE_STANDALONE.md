@@ -251,8 +251,7 @@ Here is the step-by-step procedure to resolve an on-path challenge (e.g., C3 or 
 6. **Retrieve & Analyze PCAP:**
 	- Stop `tcpdump` (Ctrl+C).
 		- From your **host machine**, copy the capture to analyze it in Wireshark locally:
-		Bash
-		```
+		```Bash
 		scp -P 2222 ansible@127.0.0.1:/opt/tls-lab/captures/challenge.pcap ./
 		```
 7. **Submit Flag:** Copy the `FLAG{...}` found and submit it on the portal.
@@ -262,15 +261,26 @@ Here is the step-by-step procedure to resolve an on-path challenge (e.g., C3 or 
 The directory `/opt/tls-lab/captures` on the VM is mapped to `/captures` inside the `attacker` container.
 
 - **Attacker Container ➔ Host Machine:** Save any file to `/captures/my_file` inside the container, then pull it from your host:
-	Bash
-	```
+	
+	```Bash
 	scp -P 2222 ansible@127.0.0.1:/opt/tls-lab/captures/my_file ./
 	```
+
 - **Host Machine ➔ Attacker Container:** Push a script or custom payload from your host to the VM:
-	Bash
+	```Bash
+	docker exec -it tls-lab-attacker-1 bash	 
 	```
+
+	```Bash
+	docker exec -it tls-lab-attacker-1 bash	 
+	chown -R ansible:ansible /opt/tls-lab/captures
+	chmod -R 775 /opt/tls-lab/captures
+	```
+
+	```Bash
 	scp -P 2222 ./exploit.py ansible@127.0.0.1:/opt/tls-lab/captures/
 	```
+
 	It will immediately be available at `/captures/exploit.py` inside the `attacker` container shell.
 
 ## 8. Troubleshooting (Standalone)

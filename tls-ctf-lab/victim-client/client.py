@@ -1,29 +1,5 @@
 """
 client.py — Client-victime du laboratoire.
-
-Rôle pédagogique : jouer la « victime » naïve dont l'étudiant interceptera le
-trafic. Il consomme la file de jobs alimentée par le portail (bouton
-« Démarrer » → IP de destination) et, selon le challenge, interroge la cible
-d'une manière volontairement imprudente :
-
-  mitm-http      : consulte son relevé en HTTP CLAIR → reniflable tel quel.
-  self-signed    : HTTPS en DÉSACTIVANT la validation du certificat (verify=False)
-                   → interceptable par un MITM présentant son propre certificat.
-  pfs-rsa-kx     : ouvre des sessions TLS à ÉCHANGE RSA (sans éphémère) → le
-                   trafic enregistré est déchiffrable a posteriori si la clé fuit.
-  logjam         : sessions TLS rétrogradables vers un DHE export (512 bits) →
-                   secret éphémère cassable par logarithme discret précalculé.
-  ssl-strip      : suit un lien HTTP en clair → rétrogradable / lisible en clair.
-  poodle / beast : négocient SSLv3 / TLS 1.0 CBC et rejouent la requête
-                   → matière première de l'oracle de padding / du chosen-plaintext.
-  heartbleed     : ouvre des sessions TLS régulières → maintient des secrets en
-                   mémoire côté serveur, exfiltrables par Heartbleed.
-
-  Les warm-ups OpenSSL et Scapy ne génèrent aucun trafic victime (interaction
-  directe de l'étudiant avec la cible).
-
-⚠️ La désactivation de la vérification TLS ci-dessous est INTENTIONNELLE et
-   circonscrite au laboratoire isolé. Ne jamais reproduire en production.
 """
 
 import json
@@ -35,13 +11,6 @@ import urllib.request
 
 QUEUE = os.environ.get("VICTIM_QUEUE", "/data/victim_jobs.jsonl")
 POLL = float(os.environ.get("POLL_SECONDS", "5"))
-# Mode d'armement :
-#   "queue"      → (local) consomme la file de jobs écrite par le portail via le
-#                  volume partagé ; l'étudiant arme chaque challenge via /start.
-#   "standalone" → (salle de TP) aucune file partagée entre machines : la victime
-#                  rejoue en boucle une liste statique de cibles LOCALES fournie
-#                  par VICTIM_STANDALONE_TARGETS (JSON), de sorte qu'un flux à
-#                  intercepter circule en permanence sans armement central.
 MODE = os.environ.get("VICTIM_MODE", "queue")
 STANDALONE_TARGETS = os.environ.get("VICTIM_STANDALONE_TARGETS", "[]")
 _seen = set()
@@ -59,34 +28,50 @@ def _insecure_ctx(challenge: str | int = "") -> ssl.SSLContext:
         ctx.set_ciphers('AES128-SHA:@SECLEVEL=1')
 
         print("[victim] TLS VERSION:", ctx.minimum_version, ctx.maximum_version)
-
         print(
             "[victim] ENABLED CIPHERS:",
             ":".join(c["name"] for c in ctx.get_ciphers()),
             flush=True
-        ) 
+        )
     return ctx
 
 
-# Les warm-ups (OpenSSL, Scapy) sont des exercices d'interaction DIRECTE avec la
-# cible : aucun trafic victime à générer.
 _NO_VICTIM = {"recon", "openssl-warmup", "scapy-warmup"}
-# Challenges dont le trafic victime circule en HTTP clair (interceptable tel quel).
 _PLAINTEXT = {"ssl-strip", "mitm-http"}
-# Challenges nécessitant une pile TLS HÉRITÉE que l'OpenSSL 3.x de Python ne
-# fournit plus : SSLv3 (retiré) pour POODLE, TLS 1.0 (désactivé) pour BEAST. On
-# rejoue alors via le binaire OpenSSL 1.0.1f embarqué (cf. Dockerfile victime).
 _LEGACY = {"poodle-sslv3": "-ssl3", "beast-tls10": "-tls1"}
 _LEGACY_OPENSSL = "/opt/openssl-vuln/bin/openssl"
 
 
-def _legacy_replay(job: dict) -> None:
-    """Rejeu SSLv3/TLS1.0 via le binaire OpenSSL 1.0.1f (POODLE C9 / BEAST C10).
+def _legacy_replay_poodle(job: dict) -> None:
+    """Rejeu spécifique POODLE (C9) avec padding dynamique dans l'URL."""
+    ip, port, slug = job["dest_ip"], job["port"], job["slug"]
+    proto = _LEGACY[slug]
+    env = dict(os.environ, LD_LIBRARY_PATH="/opt/openssl-vuln/lib")
+    
+    reps = 30
+    print(f"[victim] job {job['token']} ({slug}, legacy {proto}) → "
+          f"{ip}:{port} ×{reps}", flush=True)
+          
+    for i in range(reps):
+        padding = "A" * (i % 16)
+        request = (f"GET /c/{job['challenge']}/flag-feed?pad={padding} HTTP/1.0\r\n"
+                   f"Host: bank.tp.lan\r\n\r\n").encode()
+                   
+        try:
+            subprocess.run(
+                [_LEGACY_OPENSSL, "s_client", "-connect", f"{ip}:{port}", proto,
+                 "-cipher", "AES128-SHA:AES256-SHA:DES-CBC3-SHA"],
+                input=request, env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6,
+            )
+        except Exception as exc:
+            print(f"[victim] {exc}", flush=True)
+            
+        time.sleep(0.5)
 
-    Génère la vraie session héritée CBC — porteuse du Set-Cookie du serveur — en
-    boucle, matière première de l'oracle de padding (POODLE) / du chosen-plaintext
-    (BEAST). Le binaire moderne de Python ne peut pas produire ce trafic.
-    """
+
+def _legacy_replay(job: dict) -> None:
+    """Rejeu standard pour BEAST (C10) ou autres slugs hérités."""
     ip, port, slug = job["dest_ip"], job["port"], job["slug"]
     proto = _LEGACY[slug]
     request = (f"GET /c/{job['challenge']}/flag-feed HTTP/1.0\r\n"
@@ -103,45 +88,43 @@ def _legacy_replay(job: dict) -> None:
                 input=request, env=env,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6,
             )
-        except Exception as exc:  # lab : on ignore les erreurs réseau
+        except Exception as exc:
             print(f"[victim] {exc}", flush=True)
         time.sleep(1)
 
 
 def _replay(job: dict) -> None:
-    ip, port, mode, slug = job["dest_ip"], job["port"], job["mode"], job["slug"]  #[cite: 7]
-    if slug in _NO_VICTIM:  #[cite: 7]
-        print(f"[victim] job {job['token']} ({slug}) — pas de trafic victime "  #[cite: 7]
-              f"(interaction directe avec la cible).", flush=True)  #[cite: 7]
-        return  #[cite: 7]
-    if slug in _LEGACY:  # POODLE / BEAST : rejeu via OpenSSL 1.0.1f hérité
+    ip, port, mode, slug = job["dest_ip"], job["port"], job["mode"], job["slug"]
+    if slug in _NO_VICTIM:
+        print(f"[victim] job {job['token']} ({slug}) — pas de trafic victime "
+              f"(interaction directe avec la cible).", flush=True)
+        return
+        
+    # Aiguillage selon le slug ou le challenge
+    if slug == "poodle-sslv3" or str(job.get("challenge")) in ("9", "C9"):
+        _legacy_replay_poodle(job)
+        return
+    elif slug in _LEGACY:
         _legacy_replay(job)
         return
-    scheme = "http" if slug in _PLAINTEXT else "https"  #[cite: 7]
-    url = f"{scheme}://{ip}:{port}/c/{job['challenge']}/flag-feed"  #[cite: 7]
+
+    scheme = "http" if slug in _PLAINTEXT else "https"
+    url = f"{scheme}://{ip}:{port}/c/{job['challenge']}/flag-feed"
     
-    # Validation du contexte via le champ challenge (int ou str)
     ctx = _insecure_ctx(job.get("challenge"))
     
-    reps = 30 if mode in ("tls", "cleartext") else 10  #[cite: 7]
-    print(f"[victim] job {job['token']} → {url} ×{reps}", flush=True)  #[cite: 7]
-    for _ in range(reps):  #[cite: 7]
-        try:  #[cite: 7]
-            with urllib.request.urlopen(url, timeout=4, context=ctx) as r:  #[cite: 7]
-                r.read()  #[cite: 7]
-        except Exception as exc:  #[cite: 7]
-            print(f"[victim] {exc}", flush=True)  #[cite: 7]
-        time.sleep(1)  #[cite: 7]
+    reps = 30 if mode in ("tls", "cleartext") else 10
+    print(f"[victim] job {job['token']} → {url} ×{reps}", flush=True)
+    for _ in range(reps):
+        try:
+            with urllib.request.urlopen(url, timeout=4, context=ctx) as r:
+                r.read()
+        except Exception as exc:
+            print(f"[victim] {exc}", flush=True)
+        time.sleep(1)
 
 
 def _standalone_loop() -> None:
-    """Mode salle de TP : rejoue en boucle une liste statique de cibles locales.
-
-    VICTIM_STANDALONE_TARGETS est un JSON de jobs (mêmes champs que la file du
-    portail) : [{"challenge","slug","dest_ip","port","mode","token"}, …].
-    dest_ip peut être un NOM DE SERVICE docker (résolu localement), la cible
-    étant sur la même machine que la victime.
-    """
     try:
         jobs = json.loads(STANDALONE_TARGETS)
     except json.JSONDecodeError:
@@ -156,7 +139,6 @@ def _standalone_loop() -> None:
 
 
 def _queue_loop() -> None:
-    """Mode local : consomme la file de jobs armée par le portail (/start)."""
     print("[victim] mode QUEUE (local) — en attente d'ordres du portail…", flush=True)
     while True:
         if os.path.exists(QUEUE):

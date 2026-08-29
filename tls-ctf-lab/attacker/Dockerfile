@@ -46,9 +46,6 @@ COPY --from=ossl101f /opt/openssl-vuln /opt/openssl-vuln
 RUN printf '#!/bin/sh\nexec env LD_LIBRARY_PATH=/opt/openssl-vuln/lib /opt/openssl-vuln/bin/openssl "$@"\n' \
       > /usr/local/bin/openssl-legacy && chmod +x /usr/local/bin/openssl-legacy
 
-# PoC POODLE de référence (oracle de padding SSLv3/CBC).
-COPY poodle_poc.py /opt/poc/poodle_poc.py
-
 RUN useradd -m -u 1000 -s /bin/bash ansible \
  && mkdir -p /captures /work \
  && chown -R ansible:ansible /captures /work

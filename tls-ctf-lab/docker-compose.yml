@@ -48,15 +48,20 @@ services:
     cap_add: [NET_RAW, NET_ADMIN]
 
   attacker:
-    build: ./attacker
-    volumes:
-      - ./captures:/captures
-    networks:
-      lab: { ipv4_address: 172.28.0.12 }
-    cap_add: [NET_RAW, NET_ADMIN]
-    sysctls:
-      - net.ipv4.ip_forward=1
-    tty: true
+      build: ./attacker
+      volumes:
+        - ./captures:/captures
+      networks:
+        lab: { ipv4_address: 172.28.0.12 }
+      cap_add: [NET_RAW, NET_ADMIN]
+      sysctls:
+        - net.ipv4.ip_forward=1
+      tty: true
+      user: root
+      command: >
+        sh -c "chown -R ansible:ansible /captures &&
+              chmod -R 775 /captures &&
+              su - ansible -c 'sleep infinity'"
 
   # ───────────────────────────── Prise en main ─────────────────────────── #
   c0-recon:
