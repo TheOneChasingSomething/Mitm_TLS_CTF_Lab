@@ -230,6 +230,125 @@ def verify(cid):
     )
 
 
+# --------------------------------------------------------------------------- #
+# (4) XSS injection sandbox  —  DELIBERATE, ISOLATED app-layer vulnerability
+# --------------------------------------------------------------------------- #
+# THREAT-MODEL NOTE. Every other portal surface is intentionally kept
+# application-safe: this lab's vulnerabilities live in the TRANSPORT front-ends,
+# not in the portal. This page is the single, explicit exception, because
+# cross-site scripting is by nature an application-layer flaw. It exists to make
+# the POODLE precondition concrete — an attacker needs JavaScript running in a
+# victim context to drive the adaptive chosen-plaintext traffic an on-path
+# attacker manipulates. The reflection is UNSANITISED on purpose; that missing
+# escaping IS the vulnerability under study. The container IP is still
+# constrained to the lab network (_dest_ip_allowed), so the sandbox can never be
+# turned into a generic attack launcher.
+
+XSS_QUEUE = os.environ.get("XSS_QUEUE", VICTIM_QUEUE)
+
+
+def _enqueue_xss_job(target: str, dest_ip: str, js: str) -> str:
+    """Queue a JS payload for the executor of the chosen container.
+
+    The job carries a ``target`` role ("victim" | "server"); the matching
+    container's executor (see victim-client/client.py) picks it up and runs the
+    payload in its JS engine. Mirrors _enqueue_victim_job, one file, one queue.
+    """
+    token = secrets.token_hex(8)
+    job = {
+        "type": "xss",
+        "token": token,
+        "target": target,        # which container runs it
+        "dest_ip": dest_ip,      # that container's lab IP
+        "payload": js,
+        "ts": int(time.time()),
+    }
+    os.makedirs(os.path.dirname(XSS_QUEUE), exist_ok=True)
+    with open(XSS_QUEUE, "a") as fh:
+        fh.write(json.dumps(job) + "\n")
+    return token
+
+
+# Reflected-sink template. Placeholders are substituted by str.replace (not an
+# f-string) so the embedded JS/HTML braces stay readable. The substitution is
+# INTENTIONALLY unsanitised — do not add escaping here; the missing escaping is
+# the lesson.
+_REFLECT_TMPL = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>reflected sink</title></head>
+<body style="font-family:monospace;background:#0b1019;color:#e6edf3;padding:16px">
+  <p>Reflected payload executing in this browser context &mdash; target __TARGET__ @ __IP__</p>
+  <div id="out"></div>
+  <script>
+    /* LAB helper exposed to the injected payload (browser context). */
+    var LAB = {
+      selfIp: "__IP__",
+      target: "__TARGET__",
+      fetch: function (u, o) { return fetch(u, Object.assign({ mode: "no-cors" }, o || {})); },
+      loop:  function (n, fn) { var p = Promise.resolve();
+               for (var i = 0; i < n; i++) (function (k) { p = p.then(function () { return fn(k); }); })(i);
+               return p; },
+      log:   function (m) { var d = document.getElementById("out"); d.textContent += m + "\\n"; }
+    };
+  </script>
+  <script>
+    /* ==== INJECTED PAYLOAD (verbatim, unsanitised) ==== */
+    __JS__
+    /* ================================================= */
+  </script>
+</body></html>"""
+
+
+@app.route("/xss", methods=["GET", "POST"])
+def xss():
+    if request.method == "GET":
+        return render_template("xss.html", lab_cidr=LAB_CIDR)
+
+    js = request.form.get("js", "")
+    target = request.form.get("target", "victim")
+    dest_ip = request.form.get("dest_ip", "")
+    action = request.form.get("action", "deliver")
+    if target not in ("victim", "server"):
+        target = "victim"
+
+    if not _dest_ip_allowed(dest_ip):
+        return render_template(
+            "xss.html", lab_cidr=LAB_CIDR, js_prefill=js, target=target,
+            dest_ip=dest_ip,
+            error=(f"IP refused. Only private addresses of {LAB_CIDR} (the lab "
+                   "network) are accepted. The sandbox never targets a host "
+                   "outside its scope."),
+        ), 400
+
+    if action == "reflect":
+        # Raw reflected-XSS URL, shown in an iframe and as an openable link.
+        reflect_url = url_for("xss_reflect", js=js, ip=dest_ip, target=target)
+        return render_template("xss.html", lab_cidr=LAB_CIDR, js_prefill=js,
+                               target=target, dest_ip=dest_ip,
+                               reflected=True, reflect_url=reflect_url)
+
+    token = _enqueue_xss_job(target, dest_ip, js)
+    return render_template("xss.html", lab_cidr=LAB_CIDR, js_prefill=js,
+                           target=target, dest_ip=dest_ip, token=token)
+
+
+@app.route("/xss/reflect")
+def xss_reflect():
+    """The injection SINK: query parameters are reflected VERBATIM into the page.
+
+    Loading this URL in a browser executes the supplied JavaScript in that
+    browser's context. This is the reflected-XSS vulnerability the student is
+    meant to observe and exploit; it is unsanitised on purpose.
+    """
+    js = request.args.get("js", "")
+    ip = request.args.get("ip", "")
+    target = request.args.get("target", "victim")
+    html = (_REFLECT_TMPL
+            .replace("__TARGET__", target)
+            .replace("__IP__", ip)
+            .replace("__JS__", js))
+    return Response(html, mimetype="text/html")
+
+
 @app.route("/.well-known/backup/server.key")
 def leaked_key():
     """Fuite VOLONTAIRE (challenge 5). Sert la clé privée RSA du portail.
