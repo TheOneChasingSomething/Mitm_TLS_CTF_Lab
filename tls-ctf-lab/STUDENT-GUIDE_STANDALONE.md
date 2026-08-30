@@ -289,4 +289,10 @@ docker exec -u 0 -it tls-lab-victim-client-1 ip neigh flush all
 sudo ip neigh replace <IP> lladdr <MAC> dev eth0 nud permanent
 
 docker logs -f victim
+
+cat /proc/sys/net/ipv4/ip_forward              # doit valoir 1
+cat /proc/sys/net/ipv4/conf/all/rp_filter      # 0 (ou 2 = loose) recommandé
+cat /proc/sys/net/ipv4/conf/eth0/rp_filter     # 0
+
+ss -tlnp
 ```
