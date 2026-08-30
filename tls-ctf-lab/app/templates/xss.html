@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}XSS injection sandbox{% endblock %}
+{% block body %}
+<a class="back" href="{{ url_for('index') }}">← dashboard</a>
+<h1>XSS injection sandbox</h1>
+
+<div class="handshake weak">
+  <code>reflected XSS — user input flows UNSANITISED into a &lt;script&gt; sink (deliberate, isolated)</code>
+</div>
+
+<p class="lede">
+  Every other portal surface is application-safe by design; this page is the
+  single, deliberate exception. It models the POODLE precondition: an on-path
+  attacker needs JavaScript running in a <em>victim context</em> to drive the
+  adaptive chosen-plaintext traffic they then manipulate. Write a JS payload,
+  choose <strong>where it runs</strong> — the <em>victim</em> or the
+  <em>server</em> container — and give that container's lab IP. Only private
+  addresses of <code>{{ lab_cidr }}</code> are accepted.
+</p>
+
+{% if error %}<div class="banner err">{{ error }}</div>{% endif %}
+{% if token %}
+<div class="banner ok">
+  Payload delivered to the <code>{{ target }}</code> container
+  (<code>{{ dest_ip }}</code>). Job token <code>{{ token }}</code>. That
+  container's executor will run it in its JS engine — watch its logs and your
+  capture / MITM.
+</div>
+{% endif %}
+
+<form method="post" class="panel wide">
+  <label for="js">JavaScript payload</label>
+  <textarea id="js" name="js" rows="11" spellcheck="false"
+    placeholder="// Runs on the selected container. Helpers available:
+//   LAB.selfIp  — the container's own lab IP (the value you entered)
+//   LAB.fetch(url[, opts])           — lab-scoped fetch()
+//   LAB.legacy(ip, port, path)       — one SSLv3 request via the legacy openssl
+//   LAB.loop(n, fn)                  — await fn(0..n-1) sequentially
+// Example: drive POODLE traffic at the SSLv3 server from the victim browser
+const SERVER = '172.28.0.29';            // <-- the C9 target's IP
+LAB.loop(256, i =>
+  LAB.legacy(SERVER, 8444, `/c/9/flag-feed?pad=${'A'.repeat(i % 16)}`)
+);">{{ js_prefill or '' }}</textarea>
+
+  <label>Execute on</label>
+  <div class="choice">
+    <label class="inline"><input type="radio" name="target" value="victim"
+      {{ 'checked' if target != 'server' else '' }}> victim container</label>
+    <label class="inline"><input type="radio" name="target" value="server"
+      {{ 'checked' if target == 'server' else '' }}> server container</label>
+  </div>
+
+  <label for="dest_ip">That container's IP (lab network {{ lab_cidr }})</label>
+  <input id="dest_ip" name="dest_ip" value="{{ dest_ip or '' }}" placeholder="172.28.0.29"
+         pattern="[0-9.]+" autocomplete="off" required>
+
+  <div class="btnrow">
+    <button type="submit" name="action" value="deliver">Deliver to container</button>
+    <button type="submit" name="action" value="reflect" class="ghost">Reflect in my browser</button>
+  </div>
+</form>
+
+{% if reflected %}
+<h3>Reflected response — the injection sink</h3>
+<p class="lede">
+  The payload is echoed verbatim into a <code>&lt;script&gt;</code> tag and runs
+  in <em>your</em> browser below. This is the raw reflected XSS; the container
+  executor runs the same bytes headless when you use <em>Deliver to container</em>.
+</p>
+<iframe class="sink" src="{{ reflect_url }}" title="reflected payload"></iframe>
+<p><a class="back" href="{{ reflect_url }}" target="_blank" rel="noopener">open the raw sink in a new tab →</a></p>
+{% endif %}
+{% endblock %}
