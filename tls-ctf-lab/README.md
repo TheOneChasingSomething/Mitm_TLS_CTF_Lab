@@ -15,8 +15,7 @@ link between *theoretical guarantee* and *implementation condition*.
 > production network or to the Internet (see §8).
 
 > 📘 The **instructor answer key** (*mainstream tools* **then** *Scapy* resolution
-> for each challenge) is provided separately in `SOLUTIONS.md`, with the reference
-> Scapy scripts under `solutions/scapy/`.
+> for each challenge) is not provided at the moment.
 
 ---
 
@@ -137,62 +136,103 @@ cd packer && packer init . && packer build -only='qemu.*' .
 
 ## 5. Deploying the lab
 
-The lab deploys in **three ways**, depending on context:
+This section details how to choose the right installation mode, the prerequisites, and the specific commands for each context.
 
-| Mode | Tool | Topology | Where |
-|------|------|----------|-------|
-| **Local** (single host) | Packer + Compose | everything on one machine (or a `qcow2` VM) | below + `packer/` |
-| **Classroom** (fleet) | Ansible (+ Packer) | portal on the teacher, targets+victim on each workstation | `ansible/` (`site.yml`) |
-| **Centralized anti-cheat** | Ansible (+ Packer) | everything on the teacher server, one isolated instance per student, confined SSH access | `ansible/` (`centralized.yml`) |
+5.1 How to choose your installation type?
+Context	Recommended Mode	Why?
+Personal Learning / Dev	local_docker	Fastest setup, no VM overhead, easy to reset (make local_clean).
+Classroom (Physical PCs)	baremetal_classroom	Students use their own machines; portal is centralized on the teacher's server.
+Cloud / Remote Lab	baremetal_standalone	You have a single powerful VM (e.g., CloudStack/AWS) where everything runs in Docker containers.
+Anti-Cheat / Proctored Exam	baremetal_centralized	Strict isolation per student via SSH; unique flags per student; no host access.
+5.2 Prerequisites
+Before running any deployment, ensure you have:
 
-In **classroom** mode (mode 2), the portal — the site that receives and verifies
-flags — is centralized on the teacher machine; each workstation hosts only the
-targets and the victim-client, which proxy to that portal (`portal → TEACHER_IP`
-via `extra_hosts`). The victim runs in *standalone* mode. Deploy:
-`cd ansible && ansible-playbook site.yml`.
+Python 3.9+ and a virtual environment (venv) activated.
+Ansible installed (pip install ansible).
+Docker Engine & Docker Compose V2 (for local or standalone modes).
+SSH Keys:
+For local: Your default ~/.ssh/id_ed25519.
+For baremetal: Specific keys generated via make generate-keys.
+5.3 Configuring Ansible Inventory
+For all bare-metal/cloud deployments, you must configure ansible/inventory.ini.
 
-In **centralized anti-cheat** mode (mode 3), **everything** runs on the teacher
-server, as **one isolated instance per student** (portal + targets + victim +
-attacker, on a dedicated, hermetic `/24` network). The student has **no
-Docker/host access**: they connect via **SSH** (`ForceCommand`) into their single
-attacker container, and the **C2–C11 flags are unique per student** — impossible
-to extract a flag from an image or share it. Deploy: `cd ansible && ansible-playbook
-centralized.yml` (see `ansible/README.md`).
+[prof_host]
+# Replace with your actual IP or hostname
+vm_prof ansible_host=10.201.220.17 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
 
-### Local mode
+[students]
+# Only required for 'centralized' mode
+etu01 ansible_host=10.201.220.18 ansible_user=tp-etu01 ansible_ssh_private_key_file=../keys/etu01
 
-```sh
-make up          # docker compose build && up -d
-# Targets: 8451(C1) · 8453(C3) · 8441(C4) · 8442(C5) · 8447(C6) · 8448(C7)
-#          8006/8443(C8) · 8444(C9) · 8446(C10) · 8445(C11).
-#          C2 = internal Scapy beacon (UDP/8452).
-```
+Key Variables:
 
-### "Debug" option — observation proxy
+ansible_host: The IP address of the target machine.
+ansible_user: The user account (usually root for standalone, ansible for packed VMs).
+ansible_ssh_private_key_file: Path to the private key used for authentication.
+5.4 Installation Commands by Type
+A. Local Docker Mode (Development)
+Best for testing changes quickly on your laptop.
 
-A Compose override inserts an **inspection proxy** (mitmproxy/mitmweb) through
-which **all victim-client traffic** flows. Since the victim already accepts any
-certificate, mitmproxy **decrypts** the victim↔target TLS sessions and shows every
-exchange in the clear (flag feed, RSA-OAEP blob, leaked key, POODLE/BEAST/Logjam
-cookies, Heartbleed page…) — handy to check that a challenge really delivers its
-flag, or for a demonstration.
+# Build and start the lab
+make local_up
 
-```sh
-make debug        # = docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
-# → inspection UI: http://localhost:8081
-make debug-down
-```
+# Open a shell in the attacker container
+make local_attacker-shell
 
-> This mode **routes the victim through the proxy** (victim → proxy → target): it
-> serves debugging/demonstration on the instructor side, **not** the students'
-> attack sessions (it shifts the path that ARP spoofing would target). For a
-> headless capture, replace `mitmweb` with `mitmdump -w …` in
-> `docker-compose.debug.yml`.
+# Stop and clean up
+make local_down
+make local_clean
 
-For total isolation, flip `internal: true` on the `lab` network in
-`docker-compose.yml`. The attack host joins the `lab` network (or you
-`docker compose exec` a tooled container): Scapy sees the C2 beacon there and can
-ARP-poison there.
+B. Baremetal Standalone (Single VM / Cloud)
+Deploys the entire lab (Portal + Targets + Victim) on a single remote VM using Docker.
+
+Prepare the VM: Ensure Docker is installed. If not, run the initialization playbook:
+
+make install_baremetal_standalone
+
+(This command runs init.yml to install Docker/Git, then standalone.yml to deploy the lab).
+
+Access the Portal: Navigate to http://<VM_IP>:5000.
+
+C. Classroom Mode (Fleet of Workstations)
+The portal runs on the teacher's machine; targets run on student PCs.
+
+Teacher Machine:
+make classroom
+
+Student Machines:
+They need to point to the Teacher's IP. This is handled by extra_hosts in the Ansible roles if deployed via site.yml.
+Alternatively, students can run make local_up and manually set the PORTAL_IP environment variable.
+D. Centralized Anti-Cheat Mode
+Everything runs on the teacher's server. Each student gets an isolated SSH session into their own attacker container.
+
+Generate Student Keys:
+make generate-keys
+# Edit students.txt to list your students (one per line)
+
+Deploy:
+make deploy_baremetal_centralized
+
+Student Access:
+Students connect via SSH: ssh -i keys/etu01 tp-etu01@<SERVER_IP>
+They are dropped directly into their isolated attacker environment.
+5.5 Debugging & Troubleshooting
+If a deployment fails or a challenge doesn't work:
+
+Check Ansible Logs:
+cd ansible && ansible-playbook standalone.yml -i inventory.ini -vvv
+
+Inspect Docker Containers:
+# On the target VM
+docker compose ps
+docker compose logs <service_name>
+
+Use the Debug Proxy (Local only): To see exactly what traffic is being sent/received (useful for MITM challenges):
+make local_debug
+# Visit http://localhost:8081 to inspect decrypted TLS sessions
+make local_debug-down
+
+Verify Ports: Ensure the expected ports are open. For standalone mode, check that 5000 (Portal) and the challenge ports (8441-8453) are reachable from your attack host.
 
 ## 6. Detailed walkthrough per challenge
 

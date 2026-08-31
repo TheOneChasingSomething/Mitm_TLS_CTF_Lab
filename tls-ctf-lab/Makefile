@@ -204,10 +204,10 @@ setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode auto
 	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[localhost]:2222" >/dev/null 2>&1 || true
 	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
 
-install_baremetal_standalone: ## Installation complète Baremetal Standalone (Init + Deploy)
-	@echo "--> Démarrage de l'installation Baremetal Standalone..."
+cloud_standalone: ## Installation complète Cloud Standalone (Init + Deploy)
+	@echo "--> Démarrage de l'installation Cloud Standalone..."
 	@# Étape 1 : Initialisation (Remplacement Packer : Docker, Git, etc.)
-	@echo "   [1/2] Initialisation de la VM (Installation Docker & Prérequis)..."
+	@echo "   [1/2] Initialisation de la VM Cloud (Installation Docker & Prérequis)..."
 	@if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
 	cd ansible && \
 	ansible-playbook init.yml -i inventory.ini || { echo "[!] Échec de l'initialisation."; exit 1; }
@@ -218,7 +218,7 @@ install_baremetal_standalone: ## Installation complète Baremetal Standalone (In
 	cd ansible && \
 	ansible-playbook standalone.yml -i inventory.ini || { echo "[!] Échec du déploiement."; exit 1; }
 	
-	@echo "--> [✓] Installation Baremetal Standalone terminée avec succès."
+	@echo "--> [✓] Installation Cloud Standalone terminée avec succès."
 	@echo "--> Vous pouvez maintenant accéder aux cibles via le portail ou les ports exposés."
 
 # Alias pour les anciennes commandes (optionnel, pour compatibilité)
