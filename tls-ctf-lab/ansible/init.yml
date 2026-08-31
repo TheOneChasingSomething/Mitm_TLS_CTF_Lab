@@ -1,0 +1,6 @@
+---
+- name: Initialisation de la VM (Remplacement Packer)
+  hosts: vm_prof
+  become: true
+  roles:
+    - base_setup

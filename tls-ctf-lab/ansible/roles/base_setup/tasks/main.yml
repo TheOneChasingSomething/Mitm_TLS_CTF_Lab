@@ -1,0 +1,98 @@
+---
+- name: "Base Setup - Remplacement des étapes Packer"
+  # Ce rôle s'assure que la VM est prête pour standalone.yml
+
+  # 1. Configuration de base et paquets essentiels (Similaire au provisioner shell 1 de Packer)
+  - name: Désactiver les redémarrages automatiques (Needrestart)
+    ansible.builtin.lineinfile:
+      path: /etc/needrestart/needrestart.conf
+      regexp: '^#?\$nrconf{restart}'
+      line: '$nrconf{restart} = "a";'
+    ignore_errors: true
+    check_mode: false
+
+  - name: Mettre à jour le cache apt
+    ansible.builtin.apt:
+      update_cache: yes
+      cache_valid_time: 3600
+
+  - name: Installer les paquets de base
+    ansible.builtin.apt:
+      name:
+        - ca-certificates
+        - curl
+        - gnupg
+        - rsync
+        - git
+        - python3
+        - python3-pip
+      state: present
+
+  # 2. Installation de Docker (Similaire au provisioner shell 2 de Packer)
+  - name: Créer le dossier des clés GPG Docker
+    ansible.builtin.file:
+      path: /etc/apt/keyrings
+      state: directory
+      mode: "0755"
+
+  - name: Ajouter la clé GPG Docker
+    ansible.builtin.apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      keyring: /etc/apt/keyrings/docker.gpg
+      state: present
+
+  - name: Ajouter le dépôt Docker (format deb822 pour compatibilité moderne)
+    ansible.builtin.deb822_repository:
+      name: docker
+      types: deb
+      uris: https://download.docker.com/linux/ubuntu
+      suites: "{{ ansible_facts['distribution_release'] }}"
+      components: stable
+      architectures: "{{ ansible_facts['architecture'] }}"
+      signed_by: /etc/apt/keyrings/docker.gpg
+      state: present
+
+  - name: Installer Docker Engine et plugins
+    ansible.builtin.apt:
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+      state: present
+      update_cache: yes
+
+  - name: Activer et démarrer le service Docker
+    ansible.builtin.systemd:
+      name: docker
+      enabled: yes
+      state: started
+
+  # 3. Configuration utilisateur et répertoire (Similaire au provisioner shell 3 de Packer)
+  - name: S'assurer que l'utilisateur 'ansible' existe
+    ansible.builtin.user:
+      name: ansible
+      shell: /bin/bash
+      groups: docker
+      append: yes
+      create_home: yes
+      state: present
+
+  - name: Créer le répertoire de travail du projet
+    ansible.builtin.file:
+      path: "{{ lab_project_dir | default('/home/ansible/tls-ctf-lab') }}"
+      state: directory
+      owner: ansible
+      group: ansible
+      mode: "0755"
+
+  - name: Cloner le dépôt Git si absent (Optionnel, selon votre besoin)
+    ansible.builtin.git:
+      repo: 'https://github.com/TheOneChasingSomething/Mitm_TLS_CTF_Lab.git'
+      dest: "{{ lab_project_dir | default('/home/ansible/tls-ctf-lab') }}"
+      version: main
+      force: yes
+    become_user: ansible
+    when: ansible_user == 'ansible' or ansible_user_id == 'root'
+    # Note: Si vous clonez déjà manuellement avant, vous pouvez commenter cette tâche.
