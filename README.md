@@ -135,7 +135,6 @@ cd packer && packer init . && packer build -only='qemu.*' .
 > parameter.
 
 ## 5. Deploying the lab
-## 5. Deploying the lab: A Guide by Scenario
 
 This section details how to choose the right installation mode, the prerequisites, and the specific commands for each context.
 
