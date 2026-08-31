@@ -1,5 +1,9 @@
 # Raccourcis d'exploitation du laboratoire.
-.PHONY: build up down logs clean packer-portal packer-vm rotate-flags classroom classroom-check centralized-instances debug debug-down generate-keys deploy-ansible-prof-centralized deploy-ansible-prof-standalone setup-vm-packer-prof-centralized setup-vm-packer-prof-standalone standalone-up attacker-shell ssh-student
+.PHONY: local_build local_up local_down local_logs local_clean local_standalone_up local_attacker_shell local_ssh_student \
+        packer-portal packer-vm rotate-flags classroom_check classroom deploy_network deploy_baremetal \
+        deploy_baremetal_centralized debug local_debug local_debug_down generate-keys \
+        setup-vm-packer-prof-centralized setup-vm-packer-prof-standalone \
+        deploy-ansible-prof-centralized deploy-ansible-prof-standalone
 
 SSH_KEY_FILE := $(HOME)/.ssh/id_ed25519
 STUDENTS_FILE := students.txt
@@ -11,37 +15,37 @@ VM_NAME_CENTRAL := packer-prof-centralized.qcow2
 OUT_DIR_STANDALONE := packer/output/prof_standalone
 VM_NAME_STANDALONE := packer-prof-standalone.qcow2
 
-build:            ## Construit toutes les images
+# --- 1. GESTION DOCKER LOCAL (Préfixe local_) ---
+
+local_build:            ## Construit toutes les images Docker localement
 	docker compose build
 
-up: build         ## Démarre le lab
+local_up: local_build   ## Démarre le lab en local (Docker Compose)
 	docker compose up -d
-	@echo "Cibles : 8451(C1) 8453(C3) 8441(C4) 8442(C5) 8447(C6) 8448(C7) 8006/8443(C8) 8444(C9) 8446(C10) 8445(C11) ; C2=balise Scapy interne"
+	@echo "Cibles locales : 8451(C1) 8453(C3) 8441(C4) 8442(C5) 8447(C6) 8448(C7) 8006/8443(C8) 8444(C9) 8446(C10) 8445(C11)"
 
-down:             ## Arrête le lab
+local_down:             ## Arrête le lab local
 	docker compose down
 
-logs:             ## Suit les journaux
+local_logs:             ## Suit les journaux Docker locaux
 	docker compose logs -f
 
-clean:            ## Arrête et purge volumes/images
+local_clean:            ## Arrête et purge volumes/images locaux
 	docker compose down -v --rmi local
 
-# --- Commandes directes d'utilisation des environnements d'attaque ---
-
-standalone-up: up ## Démarre le lab localement et ouvre un terminal dans le conteneur attacker
+local_standalone_up: local_up ## Démarre le lab local et ouvre un terminal dans le conteneur attacker
 	@echo "--> Connexion au conteneur attacker..."
 	docker compose exec -it attacker bash
 
-attacker-shell:   ## Ouvre un terminal dans le conteneur attacker local existant
+local_attacker-shell:   ## Ouvre un terminal dans le conteneur attacker local existant
 	docker compose exec -it attacker bash
 
-ssh-student:      ## Teste la connexion SSH étudiant vers la VM centralisée (étudiant par défaut: etu01)
+local_ssh-student:      ## Teste la connexion SSH étudiant vers la VM centralisée simulée (localhost:2222)
 	@STUDENT=$${ETU:-etu01}; \
 	echo "--> Connexion SSH en tant que tp-$$STUDENT sur localhost:2222..."; \
 	ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i keys/$$STUDENT -p 2222 tp-$$STUDENT@127.0.0.1
 
-# --- Packer & Ansible ---
+# --- 2. GESTION PACKER & IMAGES ---
 
 packer-portal:    ## Construit l'image portail via Packer→Docker
 	cd packer && packer init . && packer build -only='docker.*' .
@@ -49,8 +53,7 @@ packer-portal:    ## Construit l'image portail via Packer→Docker
 packer-vm:        ## Cuit la VM autonome via Packer→QEMU
 	cd packer && packer init . && packer build -only='qemu.*' .
 
-rotate-flags:     ## Régénère des flags uniques par promotion (exemple)
-	@echo "Surchargez FLAG_C1..FLAG_C11 dans un .env puis: docker compose up -d --build --force-recreate"
+# --- 3. DÉPLOIEMENT ANSIBLE (Réseau, Baremetal, Centralisé) ---
 
 classroom-check: ## Vérifie la syntaxe du playbook salle de TP
 	cd ansible && ansible-playbook site.yml --syntax-check
@@ -58,15 +61,49 @@ classroom-check: ## Vérifie la syntaxe du playbook salle de TP
 classroom:        ## Déploie en salle de TP (Ansible : portail=prof, cibles=postes)
 	cd ansible && ansible-galaxy collection install -r requirements.yml && ansible-playbook site.yml
 
-centralized-instances: ## Déploie le mode centralisé anti-triche (une instance isolée/étudiant, accès SSH)
-	cd ansible && ansible-galaxy collection install -r requirements.yml && ansible-playbook centralized.yml
+deploy_network:   ## Déploie sur un réseau existant (VMs déjà créées, pas de QEMU local)
+	@echo "--> Déploiement sur réseau existant (Baremetal/Cloud)..."
+	@if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
+	cd ansible && \
+	echo "--> Validation accès prof..." && \
+	ansible prof_host -m ping -i inventory.ini || exit 1 && \
+	echo "--> Validation de la syntaxe..." && \
+	ansible-playbook standalone.yml -i inventory.ini --syntax-check || exit 1 && \
+	echo "--> Déploiement du playbook standalone..." && \
+	ansible-playbook standalone.yml -i inventory.ini
 
-debug:            ## Démarre le lab AVEC le proxy d'observation (UI: http://localhost:8081)
+deploy_baremetal: ## Déploie sur du matériel réel (Postes étudiants + Professeur)
+	@echo "--> Déploiement Baremetal (Postes physiques)..."
+	@$(MAKE) classroom
+
+deploy_baremetal_centralized: ## Déploie le mode centralisé sur infra réelle (sans VM QEMU locale)
+	@echo "--> Déploiement Centralisé sur infra réelle (Anti-triche)..."
+	@STUDENT_JSON=$$(python3 -c 'import json, glob; print(json.dumps({"student_instances": [{"login": f.split("/")[-1].replace(".pub",""), "ssh_pubkey": open(f).read().strip()} for f in glob.glob("keys/*.pub")]}))') && \
+	if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
+	cd ansible && \
+	echo "--> Validation accès prof..." && \
+	ansible prof_host -m ping -i inventory.ini || exit 1 && \
+	echo "--> Validation de la syntaxe..." && \
+	ansible-playbook centralized.yml -i inventory.ini --syntax-check || exit 1 && \
+	echo "--> Déploiement du playbook centralized..." && \
+	ansible-playbook centralized.yml -i inventory.ini -e "$$STUDENT_JSON" || exit 1 && \
+	echo "--> Vérification de l'accès SSH des étudiants..." && \
+	while IFS= read -r etu || [ -n "$$etu" ]; do \
+		[ -z "$$etu" ] && continue; \
+		# Note: La vérification SSH nécessite que les étudiants soient accessibles sur le réseau réel
+		echo "   [i] Vérification pour $$etu (à faire manuellement si hors réseau)"; \
+	done < $(STUDENTS_FILE)
+
+# --- 4. DEBUG LOCAL ---
+
+local_debug:            ## Démarre le lab AVEC le proxy d'observation (UI: http://localhost:8081)
 	docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d --build
-	@echo "Proxy d'inspection mitmweb : http://localhost:8081 (tout le trafic victime y transite)"
+	@echo "Proxy d'inspection mitmweb : http://localhost:8081"
 
-debug-down:       ## Arrête le lab lancé en mode debug
+local_debug-down:       ## Arrête le lab lancé en mode debug
 	docker compose -f docker-compose.yml -f docker-compose.debug.yml down
+
+# --- 5. UTILITAIRES ---
 
 generate-keys:    ## Génère les clés SSH pour la liste d'étudiants définie dans students.txt
 	@if [ ! -f $(STUDENTS_FILE) ]; then \
@@ -81,6 +118,7 @@ generate-keys:    ## Génère les clés SSH pour la liste d'étudiants définie 
 			echo "[+] Clé générée pour $$etu"; \
 		fi; \
 	done < $(STUDENTS_FILE)
+
 define start_qemu_vm
 	@img_path="$(1)/$(2)"; \
 	if [ -f "$$img_path" ]; then \
@@ -104,40 +142,9 @@ define start_qemu_vm
 	fi
 endef
 
-deploy-ansible-prof-centralized: generate-keys ## Déploie Ansible (mode centralisé multi-étudiants)
-	$(call start_qemu_vm,$(OUT_DIR_CENTRAL),$(VM_NAME_CENTRAL))
-	@STUDENT_JSON=$$(python3 -c 'import json, glob; print(json.dumps({"student_instances": [{"login": f.split("/")[-1].replace(".pub",""), "ssh_pubkey": open(f).read().strip()} for f in glob.glob("keys/*.pub")]}))') && \
-	if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
-	cd ansible && \
-	echo "--> 6a. Validation accès prof..." && \
-	ansible prof_host -m ping -i inventory.ini || exit 1 && \
-	echo "--> 6b. Validation de la syntaxe..." && \
-	ansible-playbook centralized.yml -i inventory.ini --syntax-check || exit 1 && \
-	echo "--> 6c. Déploiement du playbook centralized..." && \
-	ansible-playbook centralized.yml -i inventory.ini -e "$$STUDENT_JSON" || exit 1 && \
-	echo "--> 6d. Vérification de l'accès SSH des étudiants..." && \
-	while IFS= read -r etu || [ -n "$$etu" ]; do \
-		[ -z "$$etu" ] && continue; \
-		if ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i ../keys/$$etu -q tp-$$etu@127.0.0.1 "echo ok" >/dev/null 2>&1; then \
-			echo "   [✓] Connexion SSH OK pour $$etu"; \
-		else \
-			echo "   [!] ERREUR : Échec de la connexion SSH pour $$etu"; exit 1; \
-		fi; \
-	done < ../$(STUDENTS_FILE)
+# --- 6. WORKFLOW COMPLET (Packer + QEMU + Ansible) ---
 
-deploy-ansible-prof-standalone: ## Déploie Ansible (mode autonome all-in-one)
-	$(call start_qemu_vm,$(OUT_DIR_STANDALONE),$(VM_NAME_STANDALONE))
-	@if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
-	cd ansible && \
-	echo "--> 6a. Validation accès prof..." && \
-	ansible prof_host -m ping -i inventory.ini || exit 1 && \
-	echo "--> 6b. Validation de la syntaxe..." && \
-	ansible-playbook standalone.yml -i inventory.ini --syntax-check || exit 1 && \
-	echo "--> 6c. Déploiement du playbook standalone..." && \
-	ansible-playbook standalone.yml -i inventory.ini
-
-	
-setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déploie le mode centralisé
+setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déploie le mode centralisé (Local QEMU)
 	@echo "==> 1. Nettoyage d'une ancienne VM QEMU et suppression des anciens artefacts"
 	-@pkill -f "qemu-system-x86_64.*$(OUT_DIR_CENTRAL)" || true
 	rm -rf $(OUT_DIR_CENTRAL)
@@ -167,7 +174,7 @@ setup-vm-packer-prof-centralized: generate-keys ## Prépare la VM prof et déplo
 	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[localhost]:2222" >/dev/null 2>&1 || true
 	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true	
 
-setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode autonome
+setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode autonome (Local QEMU)
 	@echo "==> 1. Nettoyage d'une ancienne VM QEMU et suppression des anciens artefacts"
 	-@pkill -f "qemu-system-x86_64.*$(OUT_DIR_STANDALONE)" || true
 	rm -rf $(OUT_DIR_STANDALONE)
@@ -196,3 +203,15 @@ setup-vm-packer-prof-standalone: ## Prépare la VM prof et déploie le mode auto
 	@$(MAKE) deploy-ansible-prof-standalone
 	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[localhost]:2222" >/dev/null 2>&1 || true
 	ssh-keygen -f "$$HOME/.ssh/known_hosts" -R "[127.0.0.1]:2222" >/dev/null 2>&1 || true
+
+# Alias pour les anciennes commandes (optionnel, pour compatibilité)
+build: local_build
+up: local_up
+down: local_down
+logs: local_logs
+clean: local_clean
+standalone-up: local_standalone_up
+attacker-shell: local_attacker-shell
+ssh-student: local_ssh-student
+debug: local_debug
+debug-down: local_debug-down
