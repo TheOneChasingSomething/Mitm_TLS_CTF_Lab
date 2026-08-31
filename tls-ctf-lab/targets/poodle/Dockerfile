@@ -22,9 +22,9 @@ RUN set -eux; \
 WORKDIR /build
 # Build NON parallélisable (race sur le lien libcrypto.so) → make en SÉRIE.
 # Remplacer la ligne 24 :
-RUN wget --no-check-certificate -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz \
+RUN wget --no-check-certificate -q https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_0_1f.tar.gz -O openssl-1.0.1f.tar.gz \
     && tar xzf openssl-1.0.1f.tar.gz \
-    && cd openssl-1.0.1f \
+    && cd openssl-OpenSSL_1_0_1f \
     && ./config --prefix=/opt/openssl-vuln shared \
     && make \
     && make install_sw

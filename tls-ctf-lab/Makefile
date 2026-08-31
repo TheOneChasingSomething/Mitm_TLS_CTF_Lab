@@ -210,7 +210,7 @@ cloud_standalone: ## Installation complète Cloud Standalone (Init + Deploy)
 	@echo "   [1/2] Initialisation de la VM Cloud (Installation Docker & Prérequis)..."
 	@if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
 	cd ansible && \
-	ansible-playbook init.yml -i inventory.ini || { echo "[!] Échec de l'initialisation."; exit 1; }
+	ansible-playbook init.yml -i inventory.ini  || { echo "[!] Échec de l'initialisation."; exit 1; }
 	
 	@# Étape 2 : Déploiement des cibles
 	@echo "   [2/2] Déploiement des cibles CTF (Standalone)..."

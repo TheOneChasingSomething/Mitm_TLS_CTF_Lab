@@ -5,7 +5,7 @@
 #   ansible-playbook standalone.yml -i inventory.ini
 
 - name: Déploiement Standalone sur VM Prof
-  hosts: vm_prof
+  hosts: teacher
   become: true
   roles:
     - common
