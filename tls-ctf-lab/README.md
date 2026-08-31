@@ -135,104 +135,112 @@ cd packer && packer init . && packer build -only='qemu.*' .
 > parameter.
 
 ## 5. Deploying the lab
+## 5. Deploying the lab: A Guide by Scenario
 
 This section details how to choose the right installation mode, the prerequisites, and the specific commands for each context.
 
-5.1 How to choose your installation type?
-Context	Recommended Mode	Why?
-Personal Learning / Dev	local_docker	Fastest setup, no VM overhead, easy to reset (make local_clean).
-Classroom (Physical PCs)	baremetal_classroom	Students use their own machines; portal is centralized on the teacher's server.
-Cloud / Remote Lab	baremetal_standalone	You have a single powerful VM (e.g., CloudStack/AWS) where everything runs in Docker containers.
-Anti-Cheat / Proctored Exam	baremetal_centralized	Strict isolation per student via SSH; unique flags per student; no host access.
-5.2 Prerequisites
-Before running any deployment, ensure you have:
+### 5.1 How to choose your installation type?
 
-Python 3.9+ and a virtual environment (venv) activated.
-Ansible installed (pip install ansible).
-Docker Engine & Docker Compose V2 (for local or standalone modes).
-SSH Keys:
-For local: Your default ~/.ssh/id_ed25519.
-For baremetal: Specific keys generated via make generate-keys.
-5.3 Configuring Ansible Inventory
-For all bare-metal/cloud deployments, you must configure ansible/inventory.ini.
+| Context | Recommended Mode | Architecture |
+| :--- | :--- | :--- |
+| **Personal Learning / Dev** | `local_docker` | All containers run locally. |
+| **Cloud / Remote Lab** | `cloud_standalone` | **You run Ansible from your machine**, but the lab (Docker containers) runs on a remote VM (CloudStack/AWS). |
+| **Classroom (Physical PCs)** | `baremetal_classroom` | Teacher's server runs the portal; students' PCs run the targets. |
+| **Anti-Cheat / Proctored Exam** | `baremetal_centralized` | Everything runs on a central server; students connect via isolated SSH sessions. |
 
-[prof_host]
-# Replace with your actual IP or hostname
-vm_prof ansible_host=10.201.220.17 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
+### 5.2 Prerequisites
 
-[students]
-# Only required for 'centralized' mode
-etu01 ansible_host=10.201.220.18 ansible_user=tp-etu01 ansible_ssh_private_key_file=../keys/etu01
 
-Key Variables:
+To deploy the lab on a Cloud VM from your machine:
 
-ansible_host: The IP address of the target machine.
-ansible_user: The user account (usually root for standalone, ansible for packed VMs).
-ansible_ssh_private_key_file: Path to the private key used for authentication.
-5.4 Installation Commands by Type
-A. Local Docker Mode (Development)
-Best for testing changes quickly on your laptop.
+1.  **On your machine (Control Node):**
+    *   **Python 3.9+** installed.
+    *   **Ansible** installed (`pip install ansible`).
+    *   **SSH Key**: Your private key (e.g., `~/.ssh/id_ed25519`) must be configured to access the VM.
 
-# Build and start the lab
+2.  **On the Target VM (Cloud Instance):**
+    *   **SSH Access**: Port 22 must be open in the Security Group.
+    *   **Python**: Usually pre-installed on Linux images (required for Ansible modules).
+    *   **No Docker or Ansible needed**: Ansible will install Docker automatically during the deployment.
+
+**Verification Step:**
+Before running the deployment, ensure you can connect manually from your machine:
+```bash
+ssh -i ~/.ssh/id_ed25519 root@YOUR_VM_IP
+```
+
+### 5.3 Configuring Ansible Inventory (`ansible/inventory.ini`)
+
+For the **Cloud Standalone** mode, you must configure the connection from your machine to the remote VM.
+
+1.  Open `ansible/inventory.ini`.
+2.  Locate the `[cloud_vm]` section.
+3.  **Uncomment** the `vm_target` line and fill in your details:
+    ```ini
+    [cloud_vm]
+    # Replace with your Cloud VM IP
+    vm_target ansible_host=YOUR_VM_IP ansible_port=22 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
+    ```
+4.  Ensure the `[teacher:children]` section points to `cloud_vm`:
+    ```ini
+    [teacher:children]
+    cloud_vm
+    ```
+
+**Key Variables:**
+*   `ansible_host`: The **Public IP** or **Private IP** of your Cloud instance VM.
+*   `ansible_user`: The user account on the VM (e.g., `root`, `ubuntu`, `centos`).
+*   `ansible_ssh_private_key_file`: Path to your **local** private key (on your machine) that matches the public key injected in the VM.
+
+### 5.4 Installation Commands by Type
+
+#### A. Local Docker Mode (Development)
+Run everything locally.
+```bash
 make local_up
+```
 
-# Open a shell in the attacker container
-make local_attacker-shell
 
-# Stop and clean up
-make local_down
-make local_clean
+#### B. Cloud Standalone (local machine -> Remote VM)
 
-B. Baremetal Standalone (Single VM / Cloud)
-Deploys the entire lab (Portal + Targets + Victim) on a single remote VM using Docker.
+**This is the recommanded mode.** You execute the command from your machine. Ansible connects to the remote VM, installs Docker, and deploys the lab there.
 
-Prepare the VM: Ensure Docker is installed. If not, run the initialization playbook:
+1. **Configure Inventory**: Set up `ansible/inventory.ini` as described in §5.3.
+2. **Run Deployment**:
+	`make cloud_standalone`
+	*What happens:*
+	- Ansible connects to your VM via SSH.
+		- It runs `init.yml` to install Docker, Git, and prepare the environment.
+		- It runs `standalone.yml` to launch the Docker containers (Portal, Targets, Victim).
+3. **Access the Lab**: Once finished, open your browser to `http://<YOUR_VM_IP>:5000`.
 
-make install_baremetal_standalone
+#### C. Classroom Mode (Fleet of Workstations)
 
-(This command runs init.yml to install Docker/Git, then standalone.yml to deploy the lab).
+Deploy on physical machines in a classroom network.
 
-Access the Portal: Navigate to http://<VM_IP>:5000.
+`make classroom`
 
-C. Classroom Mode (Fleet of Workstations)
-The portal runs on the teacher's machine; targets run on student PCs.
+#### D. Centralized Anti-Cheat Mode
 
-Teacher Machine:
-make classroom
+Strict isolation per student on a central server.
 
-Student Machines:
-They need to point to the Teacher's IP. This is handled by extra_hosts in the Ansible roles if deployed via site.yml.
-Alternatively, students can run make local_up and manually set the PORTAL_IP environment variable.
-D. Centralized Anti-Cheat Mode
-Everything runs on the teacher's server. Each student gets an isolated SSH session into their own attacker container.
+`make generate-keys make deploy_baremetal_centralized`
 
-Generate Student Keys:
-make generate-keys
-# Edit students.txt to list your students (one per line)
+### 5.5 Debugging & Troubleshooting
 
-Deploy:
-make deploy_baremetal_centralized
+If `make cloud_standalone` fails:
 
-Student Access:
-Students connect via SSH: ssh -i keys/etu01 tp-etu01@<SERVER_IP>
-They are dropped directly into their isolated attacker environment.
-5.5 Debugging & Troubleshooting
-If a deployment fails or a challenge doesn't work:
-
-Check Ansible Logs:
-cd ansible && ansible-playbook standalone.yml -i inventory.ini -vvv
-
-Inspect Docker Containers:
-# On the target VM
-docker compose ps
-docker compose logs <service_name>
-
-Use the Debug Proxy (Local only): To see exactly what traffic is being sent/received (useful for MITM challenges):
-make local_debug
-# Visit http://localhost:8081 to inspect decrypted TLS sessions
-make local_debug-down
-
-Verify Ports: Ensure the expected ports are open. For standalone mode, check that 5000 (Portal) and the challenge ports (8441-8453) are reachable from your attack host.
+1. **Test SSH Connectivity First**: Before running Ansible, ensure you can connect manually from your machine:
+	`ssh -i ~/.ssh/id_ed25519 root@YOUR_VM_IP`
+	If this fails, check your Cloud instance Security Group (allow port 22) and your firewall.
+2. **Check Ansible Logs**: Run with verbose mode to see exactly where it fails:
+	`cd ansible && ansible-playbook init.yml -i inventory.ini -vvv`
+3. **Verify Docker on Target**: If the installation seems stuck, SSH into the VM and check if Docker was installed:
+	`ssh -i ~/.ssh/id_ed25519 root@YOUR_VM_IP docker --version docker compose ps`
+4. **Firewall Issues**: Ensure your Cloud instance **Security Group** allows inbound traffic on:
+	- Port **22** (SSH for Ansible)
+		- Port **5000** (Portal)
+		- Ports **8441-8453** (Challenges)
 
 ## 6. Detailed walkthrough per challenge
 
