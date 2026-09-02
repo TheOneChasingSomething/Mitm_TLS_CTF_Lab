@@ -300,43 +300,7 @@ the `FLAG{...}` you recovered. The portal checks it and credits the points.
 
 ---
 
-## Appendix A — Flashcards
-
-1. **Q:** When you arm a challenge, which IP goes in the form?
-   **A:** The **target's** IP (the destination the victim should reach) — never
-   the victim's own IP.
-
-2. **Q:** Which challenges need no arming and no MITM?
-   **A:** The warm-ups **C1** (inspect a certificate) and **C2** (UDP
-   sniff/forge).
-
-3. **Q:** Why enable `net.ipv4.ip_forward=1` before ARP spoofing?
-   **A:** So you *relay* the victim↔target traffic; otherwise you black-hole it
-   (a denial of service instead of an interception).
-
-4. **Q:** What does `openssl s_client -connect H:P -servername N` do?
-   **A:** Opens a TLS connection to `H:P` sending SNI `N`, so you can inspect the
-   handshake and certificate the server presents.
-
-5. **Q:** How do you turn a saved capture into readable plaintext for an
-   RSA-key-exchange session (C6)?
-   **A:** Load the leaked **server private key** into Wireshark's *TLS ▸ RSA keys
-   list*; it decrypts the recorded session (works only without forward secrecy).
-
-6. **Q:** In Scapy, what is the difference between `sr1(pkt)` and `send(pkt)`?
-   **A:** `sr1` sends one packet **and returns the first reply**; `send` just
-   transmits and expects no answer.
-
-7. **Q:** What does a **display filter** (`-Y`) do versus a **capture filter**
-   (BPF)?
-   **A:** A capture/BPF filter decides what gets **recorded**; a display filter
-   decides what you **see** in an already-captured set.
-
-8. **Q:** Which quick probes tell you a TLS service is weak?
-   **A:** `nmap --script ssl-enum-ciphers` (protocols/ciphers),
-   `--script ssl-heartbleed`, `--script ssl-dh-params`, or `testssl.sh <URI>`.
-
-## Appendix B — Acronym glossary
+## Appendix A — Acronym glossary
 
 | Acronym | Expansion | Meaning |
 |---------|-----------|---------|
