@@ -596,7 +596,7 @@ To generate a unique instance per cohort or per student, set a `.env` then
 | **IaC** | *Infrastructure as Code* | Declarative, versioned infrastructure management [1]. |
 
 ---
-*Environment strictly for teaching purposes — ANSSI / CFSSI.*
+*Environment strictly for teaching purposes*
 
 
 <br>
@@ -1162,4 +1162,4 @@ divulgation nulle (comparaison à temps constant sur empreinte SHA-256, cf.
 | **IaC** | *Infrastructure as Code* | Gestion déclarative et versionnée de l'infrastructure [1]. |
 
 ---
-*Environnement à visée strictement pédagogique — ANSSI / CFSSI.*
+*Environnement à visée strictement pédagogique*
