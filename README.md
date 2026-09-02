@@ -555,8 +555,7 @@ et *condition de mise en œuvre*.
 > jamais routable vers un réseau de production ou vers Internet (cf. §8).
 
 > 📘 Le **corrigé instructeur** (résolution *outils grand public* **puis**
-> *Scapy* pour chaque challenge) est fourni séparément dans `SOLUTIONS.md`, avec
-> les scripts Scapy de référence sous `solutions/scapy/`.
+> *Scapy* pour chaque challenge) n'est pas founir pour le moment.
 
 ---
 
