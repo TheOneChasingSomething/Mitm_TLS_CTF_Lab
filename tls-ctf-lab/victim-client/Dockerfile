@@ -12,12 +12,17 @@ RUN set -eux; \
         build-essential wget ca-certificates; \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN wget -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz \
+
+# Tentative de téléchargement avec repli sur GitHub en cas d'échec
+RUN (wget -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz || \
+     wget -q https://artfiles.org/openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz || \
+     wget --no-check-certificate -q https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_0_1f.tar.gz -O openssl-1.0.1f.tar.gz) \
  && tar xzf openssl-1.0.1f.tar.gz \
- && cd openssl-1.0.1f \
+ && if [ -d openssl-1.0.1f ]; then cd openssl-1.0.1f; else cd openssl-OpenSSL_1_0_1f; fi \
  && ./config --prefix=/opt/openssl-vuln shared \
  && make \
  && make install_sw
+ 
 
 # --- Étage 2 : image finale de la victime ---
 FROM python:3.12-slim

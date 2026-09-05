@@ -221,6 +221,21 @@ cloud_standalone: ## Installation complète Cloud Standalone (Init + Deploy)
 	@echo "--> [✓] Installation Cloud Standalone terminée avec succès."
 	@echo "--> Vous pouvez maintenant accéder aux cibles via le portail ou les ports exposés."
 
+# --- Blocs à ajouter dans la section 3 (DÉPLOIEMENT ANSIBLE) ---
+
+deploy-ansible-prof-standalone: ## Déploie le mode standalone via Ansible sur la VM Packer locale (QEMU)
+	@echo "--> Déploiement Ansible sur VM Packer Standalone (127.0.0.1:2222)..."
+	@if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
+	cd ansible && \
+	ansible-playbook standalone.yml -i inventory_packer.ini
+
+deploy-ansible-prof-centralized: generate-keys ## Déploie le mode centralisé via Ansible sur la VM Packer locale (QEMU)
+	@echo "--> Déploiement Ansible sur VM Packer Centralisé (127.0.0.1:2222)..."
+	@STUDENT_JSON=$$(python3 -c 'import json, glob; print(json.dumps({"student_instances": [{"login": f.split("/")[-1].replace(".pub",""), "ssh_pubkey": open(f).read().strip()} for f in glob.glob("keys/*.pub")]}))') && \
+	if [ -f venv/bin/activate ]; then . venv/bin/activate; elif [ -f ../venv/bin/activate ]; then . ../venv/bin/activate; else echo "[!] Erreur : Aucun venv trouvé."; exit 1; fi && \
+	cd ansible && \
+	ansible-playbook centralized.yml -i inventory_packer.ini -e "$$STUDENT_JSON"
+
 # Alias pour les anciennes commandes (optionnel, pour compatibilité)
 build: local_build
 up: local_up

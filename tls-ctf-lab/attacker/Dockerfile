@@ -12,9 +12,13 @@ RUN set -eux; \
         build-essential wget ca-certificates; \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN wget -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz \
+
+# Téléchargement robuste d'OpenSSL 1.0.1f avec replis (fallbacks).
+RUN (wget -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz || \
+     wget -q https://artfiles.org/openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz || \
+     wget --no-check-certificate -q https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_0_1f.tar.gz -O openssl-1.0.1f.tar.gz) \
  && tar xzf openssl-1.0.1f.tar.gz \
- && cd openssl-1.0.1f \
+ && if [ -d openssl-1.0.1f ]; then cd openssl-1.0.1f; else cd openssl-OpenSSL_1_0_1f; fi \
  && ./config --prefix=/opt/openssl-vuln shared \
  && make \
  && make install_sw
@@ -39,6 +43,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && unzip /tmp/bettercap.zip -d /usr/local/bin/ \
  && chmod +x /usr/local/bin/bettercap \
  && rm -rf /tmp/bettercap.zip /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir --break-system-packages cryptography ipython
 
 # OpenSSL 1.0.1f hérité (SSLv3/TLS1.0) + wrapper `openssl-legacy` dans le PATH.
 # Ex. : openssl-legacy s_client -connect c9-poodle:8444 -ssl3 -cipher AES128-SHA

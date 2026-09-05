@@ -24,14 +24,14 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-# Archive officielle des anciennes versions OpenSSL.
-# NB : le build d'OpenSSL 1.0.1f n'est PAS parallélisable (les cibles créent
-# concurremment le lien libcrypto.so -> « File exists »). On compile en SÉRIE
-# (pas de -j) ; c'est un peu plus lent mais fiable, et ça ne change rien à la
-# vulnérabilité Heartbeat obtenue.
-RUN wget -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz \
+# Téléchargement robuste d'OpenSSL 1.0.1f avec replis (fallbacks).
+# Tente l'URL officielle, puis un miroir, puis le tag officiel GitHub.
+# NB : le build d'OpenSSL 1.0.1f n'est PAS parallélisable. On compile en SÉRIE (pas de -j).
+RUN (wget -q https://www.openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz || \
+     wget -q https://artfiles.org/openssl.org/source/old/1.0.1/openssl-1.0.1f.tar.gz || \
+     wget --no-check-certificate -q https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_0_1f.tar.gz -O openssl-1.0.1f.tar.gz) \
  && tar xzf openssl-1.0.1f.tar.gz \
- && cd openssl-1.0.1f \
+ && if [ -d openssl-1.0.1f ]; then cd openssl-1.0.1f; else cd openssl-OpenSSL_1_0_1f; fi \
  && ./config --prefix=/opt/openssl-vuln shared \
  && make \
  && make install_sw
